@@ -1,4 +1,4 @@
-name: Process and Cut Video
+name: Process and Cut Video from Google Drive
 
 on:
   workflow_dispatch:
@@ -59,19 +59,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install FFmpeg, yt-dlp & requests
+      - name: Install FFmpeg & gdown
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install -U yt-dlp requests
+          pip install -U gdown requests
 
-      - name: Create cookies.txt
-        run: |
-          cat > cookies.txt << 'EOF'
-          ${{ secrets.YT_COOKIES }}
-          EOF
-
-      - name: Run Video Processing Script
+      - name: Run Video Processing Script from Google Drive
         id: process_video
         env:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
@@ -80,9 +74,8 @@ jobs:
           python << 'PYTHON'
           import os
           import sys
-          import glob
           import re
-          import requests
+          import glob
 
           video_url = os.environ.get("VIDEO_URL", "").strip()
           timestamps_raw = os.environ.get("TIMESTAMPS", "").strip()
@@ -93,82 +86,40 @@ jobs:
                   f.write("skip_upload=true\n")
               sys.exit(0)
 
-          print("Download target:", video_url)
-          download_success = False
+          print("Download target Google Drive:", video_url)
 
-          # Extract Video ID
-          video_id_match = re.search(r'(?:v=|\/shorts\/|\/embed\/|\/watch\?v=)([a-zA-Z0-9_-]{11})', video_url)
-          video_id = video_id_match.group(1) if video_id_match else None
+          # Extract Drive ID dari Link Folder / File
+          drive_id_match = re.search(r'([a-zA-Z0-9_-]{25,})', video_url)
+          drive_id = drive_id_match.group(1) if drive_id_match else None
 
-          # METODE 1: Piped API (Sangat Kuat Bypass Bot Protection YouTube)
-          if video_id:
-              print(f"Mengambil video via Piped API untuk ID: {video_id}...")
-              piped_instances = [
-                  "https://pipedapi.kavin.rocks",
-                  "https://api.piped.privacydev.net",
-                  "https://piped-api.garudalinux.org",
-                  "https://pipedapi.projectsegfau.lt"
-              ]
-              
-              headers = {
-                  "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-              }
-
-              for instance in piped_instances:
-                  try:
-                      api_url = f"{instance}/streams/{video_id}"
-                      print(f"Mencoba Piped API: {api_url}")
-                      res = requests.get(api_url, headers=headers, timeout=15)
-                      if res.status_code == 200:
-                          data = res.json()
-                          
-                          # Ambil video streams (pilih format gabungan video+audio atau video MP4)
-                          streams = data.get("videoStreams", [])
-                          target_url = None
-                          
-                          # Cari stream mp4 resolusi terbaik
-                          for stream in streams:
-                              if stream.get("mimeType", "").startswith("video/mp4") and stream.get("videoOnly") is False:
-                                  target_url = stream.get("url")
-                                  break
-                          
-                          # Jika tidak ada video+audio, pakai stream video biasa
-                          if not target_url and streams:
-                              target_url = streams[0].get("url")
-
-                          if target_url:
-                              print("Dapat URL Direct dari Piped API! Mengunduh...")
-                              r = requests.get(target_url, stream=True, headers=headers, timeout=60)
-                              with open("video_mentah.mp4", "wb") as f:
-                                  for chunk in r.iter_content(chunk_size=1024*1024):
-                                      if chunk:
-                                          f.write(chunk)
-                              download_success = True
-                              print("Download via Piped API Sukses!")
-                              break
-                  except Exception as e:
-                      print(f"Gagal Piped API ({instance}):", str(e))
-
-          # METODE 2: Fallback yt-dlp via TV Client (Tanpa Cookies)
-          if not download_success:
-              print("⚠️ Piped API gagal, mencoba yt-dlp tv client...")
-              cmd_ytdlp = (
-                  f'yt-dlp '
-                  f'--extractor-args "youtube:player_client=tv" '
-                  f'--recode-video mp4 '
-                  f'"{video_url}" '
-                  f'-o "video_mentah.mp4"'
-              )
-              if os.system(cmd_ytdlp) == 0:
-                  download_success = True
-
-          files = glob.glob("video_mentah.*")
-          if not download_success or not files:
-              print("❌ Semua metode download gagal. Hentikan proses.")
+          if not drive_id:
+              print("❌ ID Google Drive tidak ditemukan dari URL!")
               sys.exit(1)
 
-          source = files[0]
-          print("Downloaded file:", source)
+          print(f"Mencoba download dari Google Drive (ID: {drive_id})...")
+          
+          # Jika link berupa Folder atau File, gdown akan otomatis menanganinya
+          download_cmd = f'gdown --id "{drive_id}" -O video_mentah.mp4 --fuzzy'
+          if "folders" in video_url:
+              download_cmd = f'gdown --folder "{video_url}" -O /tmp/gdrive_folder --remaining-ok'
+
+          exit_code = os.system(download_cmd)
+
+          # Ambil file mp4 hasil download
+          if "folders" in video_url:
+              mp4_files = glob.glob("/tmp/gdrive_folder/*.mp4") + glob.glob("/tmp/gdrive_folder/**/*.mp4", recursive=True)
+              if mp4_files:
+                  os.rename(mp4_files[0], "video_mentah.mp4")
+              else:
+                  print("❌ Tidak ada file MP4 ditemukan di dalam folder Drive.")
+                  sys.exit(1)
+
+          if not os.path.exists("video_mentah.mp4"):
+              print("❌ Download dari Google Drive gagal.")
+              sys.exit(1)
+
+          print("✅ Download dari Google Drive Berhasil!")
+          source = "video_mentah.mp4"
 
           # PROSES POTONG VIDEO DENGAN FFMPEG
           if timestamps_raw:
@@ -208,7 +159,7 @@ jobs:
           else:
               os.rename(source, "video.mp4")
 
-          print("Proses download dan pemotongan selesai!")
+          print("Proses download Drive dan pemotongan selesai!")
           PYTHON
 
       - name: Setup Node.js
