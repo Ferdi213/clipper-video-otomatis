@@ -45,7 +45,6 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Ambil kode dari repository Anda
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -53,12 +52,12 @@ jobs:
         run: |
           echo "VIDEO_URL=${{ github.event.inputs.video_url }}"
           echo "TIMESTAMPS=${{ github.event.inputs.timestamps }}"
+          echo "CHANNEL=${{ github.event.inputs.channel }}"
 
-      # 2. Setup Python & Install yt-dlp + FFmpeg
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install FFmpeg & yt-dlp
         run: |
@@ -66,13 +65,12 @@ jobs:
           sudo apt-get install -y ffmpeg
           pip install -U yt-dlp
 
-          - name: Create cookies.txt
-            run: |
-             cat > cookies.txt << 'EOF'
-             ${{ secrets.YT_COOKIES }}
-             EOF
+      - name: Create cookies.txt
+        run: |
+          cat > cookies.txt << 'EOF'
+          ${{ secrets.YT_COOKIES }}
+          EOF
 
-      # 3. Download dan Potong Video (Membaca inputs.video_url & inputs.timestamps)
       - name: Run Video Processing Script
         env:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
@@ -80,41 +78,71 @@ jobs:
         run: |
           python -c '
           import os, sys
+
           video_url = os.getenv("VIDEO_URL")
           timestamps_raw = os.getenv("TIMESTAMPS")
-          
+
           if not video_url:
-              print("Error: URL Video kosong."); sys.exit(1)
-              
-          print(f"Mengunduh video via yt-dlp dari: {video_url}")
-          os.system(
-          f'yt-dlp '
-          f'--cookies cookies.txt '
-          f'-f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]" '
-            f'"{video_url}" '
-           f'-o video_mentah.mp4'
+              print("Error: URL Video kosong.")
+              sys.exit(1)
+
+          print("Download:", video_url)
+
+          result = os.system(
+              f"yt-dlp "
+              f"--cookies cookies.txt "
+              f"-f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]\" "
+              f"\"{video_url}\" "
+              f"-o video_mentah.mp4"
           )
-          
+
+          if result != 0:
+              print("yt-dlp gagal.")
+              sys.exit(1)
+
           if not os.path.exists("video_mentah.mp4"):
-              print("Gagal mengunduh video"); sys.exit(1)
-              
+              print("Video tidak ditemukan.")
+              sys.exit(1)
+
           if timestamps_raw:
-              print(f"Memotong video ke segmen: {timestamps_raw}")
+              print("Cut:", timestamps_raw)
+
               filter_complex = ""
               concat_inputs = ""
-              for i, item in enumerate(timestamps_raw.split(",")):
+
+              parts = timestamps_raw.split(",")
+
+              for i, item in enumerate(parts):
                   start, end = item.strip().split("-")
-                  filter_complex += f"[0:v]trim=start={start}:end={end},setpts=PTS-STARTPTS[v{i}]; [0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[a{i}]; "
+                  filter_complex += (
+                      f"[0:v]trim=start={start}:end={end},setpts=PTS-STARTPTS[v{i}];"
+                      f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[a{i}];"
+                  )
                   concat_inputs += f"[v{i}][a{i}]"
-              filter_complex += f"{concat_inputs}concat=n={i+1}:v=1:a=1[outv][outa]"
-              
-              os.system(f"ffmpeg -i video_mentah.mp4 -filter_complex \"{filter_complex}\" -map \"[outv]\" -map \"[outa]\" -c:v libx264 -c:a aac video.mp4")
+
+              filter_complex += (
+                  f"{concat_inputs}concat=n={len(parts)}:v=1:a=1[outv][outa]"
+              )
+
+              cmd = (
+                  f'ffmpeg -y -i video_mentah.mp4 '
+                  f'-filter_complex "{filter_complex}" '
+                  f'-map "[outv]" '
+                  f'-map "[outa]" '
+                  f'-c:v libx264 '
+                  f'-c:a aac '
+                  f'video.mp4'
+              )
+
+              if os.system(cmd) != 0:
+                  print("FFmpeg gagal.")
+                  sys.exit(1)
           else:
               os.rename("video_mentah.mp4", "video.mp4")
-          print("Proses potong & gabung video selesai lokal.")
+
+          print("Selesai.")
           '
 
-      # 4. Setup Lingkungan Node.js
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -124,13 +152,12 @@ jobs:
         run: |
           npm install googleapis
 
-      # 5. Upload Video Terpotong Langsung ke Channel YouTube Terpilih
       - name: Upload to YouTube via Node.js
         env:
           CLIENT_ID: ${{ secrets[format('YOUTUBE_CLIENT_ID_f044_{0}', github.event.inputs.channel)] }}
           CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_f044_{0}', github.event.inputs.channel)] }}
           REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_f044_{0}', github.event.inputs.channel)] }}
-          
+
           VIDEO_TITLE: ${{ github.event.inputs.judul }}
           VIDEO_DESCRIPTION: ${{ github.event.inputs.deskripsi }}
           PUBLISH_DATE: ${{ github.event.inputs.tanggal_bulan_tahun }}
@@ -141,5 +168,6 @@ jobs:
           AUDIENCE: ${{ github.event.inputs.pilih_audiens }}
           AGE_RESTRICTION: ${{ github.event.inputs.pembatasan_usia }}
           THUMBNAIL_ID: ""
+
         run: |
           node upload.js
