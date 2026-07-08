@@ -1,194 +1,148 @@
-name: Process and Cut Video from Google Drive
+const fs = require("fs");
+const { google } = require("googleapis");
 
-on:
-  workflow_dispatch:
-    inputs:
-      video_url:
-        required: false
-        default: ''
-      timestamps:
-        required: false
-        default: ''
-      judul:
-        required: false
-        default: ''
-      deskripsi:
-        required: false
-        default: ''
-      tag:
-        required: false
-        default: ''
-      channel:
-        required: false
-        default: ''
-      lokasi:
-        required: false
-        default: ''
-      penggunaan_ai:
-        required: false
-        default: ''
-      pembatasan_usia:
-        required: false
-        default: ''
-      pilih_audiens:
-        required: false
-        default: ''
-      tanggal_bulan_tahun:
-        required: false
-        default: ''
-      jam_tayang:
-        required: false
-        default: ''
+function clean(v, fallback = "") {
+  if (v === undefined || v === null || v === "undefined" || v === "null") {
+    return fallback;
+  }
+  return String(v).trim();
+}
 
-jobs:
-  build-and-process:
-    runs-on: ubuntu-latest
+async function getCoordinates(place) {
+  if (!place) return null;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(place)}&limit=1`;
+    const response = await fetch(url, {
+      headers: { "User-Agent": "github-actions-youtube-uploader/1.0" }
+    });
+    const data = await response.json();
+    if (!data || !data.length) {
+      console.log("Lokasi tidak ditemukan:", place);
+      return null;
+    }
+    return {
+      latitude: parseFloat(data[0].lat),
+      longitude: parseFloat(data[0].lon),
+      description: data[0].display_name
+    };
+  } catch (err) {
+    console.log("Gagal mencari koordinat:", err.message || err);
+    return null;
+  }
+}
 
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+async function upload() {
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.CLIENT_ID,
+    process.env.CLIENT_SECRET
+  );
 
-      - name: Debug Inputs
-        run: |
-          echo "VIDEO_URL=${{ github.event.inputs.video_url }}"
-          echo "TIMESTAMPS=${{ github.event.inputs.timestamps }}"
-          echo "CHANNEL=${{ github.event.inputs.channel }}"
+  oauth2Client.setCredentials({
+    refresh_token: process.env.REFRESH_TOKEN
+  });
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
+  const youtube = google.youtube({
+    version: "v3",
+    auth: oauth2Client
+  });
 
-      # Cukup install gdown & requests (FFmpeg sudah ada bawaan dari GitHub)
-      - name: Install Python Dependencies
-        run: |
-          pip install -U gdown requests
+  const me = await youtube.channels.list({
+    part: ["snippet"],
+    mine: true
+  });
 
-      - name: Run Video Processing Script from Google Drive
-        id: process_video
-        env:
-          VIDEO_URL: ${{ github.event.inputs.video_url }}
-          TIMESTAMPS: ${{ github.event.inputs.timestamps }}
-        run: |
-          python << 'PYTHON'
-          import os
-          import sys
-          import re
-          import glob
+  if (!me.data.items || me.data.items.length === 0) {
+    throw new Error("Gagal mengambil data channel YouTube. Periksa Refresh Token Anda.");
+  }
 
-          video_url = os.environ.get("VIDEO_URL", "").strip()
-          timestamps_raw = os.environ.get("TIMESTAMPS", "").strip()
+  console.log("Upload ke channel:", me.data.items[0].snippet.title);
 
-          if not video_url:
-              print("⚠️ URL Video kosong. Melewati proses download & potong.")
-              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
-                  f.write("skip_upload=true\n")
-              sys.exit(0)
+  const title = clean(process.env.VIDEO_TITLE);
+  const description = clean(process.env.VIDEO_DESCRIPTION, "Uploaded via GitHub Actions");
+  const publishDate = clean(process.env.PUBLISH_DATE);
+  const videoTime = clean(process.env.VIDEO_TIME);
+  
+  let publishAt = "";
+  if (publishDate && videoTime) {
+    const parts = publishDate.split("-");
+    if (parts.length === 3) {
+      const [d, m, y] = parts;
+      publishAt = `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}T${videoTime}:00+07:00`;
+      console.log("Jadwal Publish (WIB):", publishAt);
+    }
+  }
 
-          print("Download target Google Drive:", video_url)
+  const location = clean(process.env.LOCATION);
+  const languageMap = { "Indonesia": "id", "USA": "en", "Japan": "ja" };
+  const language = languageMap[location] || "id";
 
-          # Extract Drive ID dari Link Folder / File
-          drive_id_match = re.search(r'([a-zA-Z0-9_-]{25,})', video_url)
-          drive_id = drive_id_match.group(1) if drive_id_match else None
+  const tagsRaw = clean(process.env.TAGS);
+  const audience = clean(process.env.AUDIENCE);
 
-          if not drive_id:
-              print("❌ ID Google Drive tidak ditemukan dari URL!")
-              sys.exit(1)
+  const tags = tagsRaw ? tagsRaw.split(",").map(tag => tag.trim()).filter(Boolean) : [];
+  const geo = await getCoordinates(location);
 
-          print(f"Mencoba download dari Google Drive (ID: {drive_id})...")
-          
-          # Jika link berupa Folder atau File, gdown akan otomatis menanganinya
-          download_cmd = f'gdown --id "{drive_id}" -O video_mentah.mp4 --fuzzy'
-          if "folders" in video_url:
-              download_cmd = f'gdown --folder "{video_url}" -O /tmp/gdrive_folder --remaining-ok'
+  // Pastikan file video.mp4 ada dari proses FFmpeg sebelumnya
+  if (!fs.existsSync("video.mp4")) {
+    throw new Error("File video.mp4 tidak ditemukan di direktori runner!");
+  }
 
-          exit_code = os.system(download_cmd)
+  const response = await youtube.videos.insert({
+    part: ["snippet", "status", "recordingDetails"],
+    requestBody: {
+      snippet: {
+        title,
+        description,
+        categoryId: "22",
+        tags: tags.length ? tags : undefined,
+        defaultLanguage: language,
+        defaultAudioLanguage: language
+      },
+      status: {
+        privacyStatus: publishAt ? "private" : "public",
+        publishAt: publishAt || undefined,
+        selfDeclaredMadeForKids: audience.toLowerCase() === "ya"
+      },
+      recordingDetails: geo ? {
+        locationDescription: geo.description,
+        location: { latitude: geo.latitude, longitude: geo.longitude }
+      } : undefined
+    },
+    media: {
+      body: fs.createReadStream("video.mp4")
+    }
+  });
 
-          # Ambil file mp4 hasil download jika link folder
-          if "folders" in video_url:
-              mp4_files = glob.glob("/tmp/gdrive_folder/*.mp4") + glob.glob("/tmp/gdrive_folder/**/*.mp4", recursive=True)
-              if mp4_files:
-                  os.rename(mp4_files[0], "video_mentah.mp4")
-              else:
-                  print("❌ Tidak ada file MP4 ditemukan di dalam folder Drive.")
-                  sys.exit(1)
+  const videoId = response.data.id;
+  console.log("================================");
+  console.log("✅ UPLOAD BERHASIL!");
+  console.log("Video ID:", videoId);
+  console.log(`URL: https://www.youtube.com/watch?v=${videoId}`);
+  console.log("================================");
 
-          if not os.path.exists("video_mentah.mp4"):
-              print("❌ Download dari Google Drive gagal.")
-              sys.exit(1)
+  // Bagian Pemrosesan Kustom Thumbnail
+  const thumbId = clean(process.env.THUMBNAIL_ID);
+  if (thumbId) {
+    try {
+      const thumbPath = "thumbnail.jpg";
+      const thumbResponse = await fetch(`https://docs.google.com/uc?export=download&id=${thumbId}`, {
+        redirect: "follow"
+      });
+      const buffer = await thumbResponse.arrayBuffer();
+      fs.writeFileSync(thumbPath, Buffer.from(buffer));
+      await youtube.thumbnails.set({
+        videoId: videoId,
+        media: { mimeType: "image/jpeg", body: fs.createReadStream(thumbPath) }
+      });
+      console.log("✅ Kustom Thumbnail Berhasil Dipasang!");
+    } catch (tErr) {
+      console.error("❌ Gagal memasang thumbnail:", tErr.message);
+    }
+  }
+}
 
-          print("✅ Download dari Google Drive Berhasil!")
-          source = "video_mentah.mp4"
-
-          # PROSES POTONG VIDEO DENGAN FFMPEG
-          if timestamps_raw:
-              print("Memotong video dengan timestamps:", timestamps_raw)
-              parts = timestamps_raw.split(",")
-              filter_complex = ""
-              concat_inputs = ""
-
-              for i, item in enumerate(parts):
-                  start, end = item.strip().split("-")
-                  filter_complex += (
-                      f"[0:v]trim=start={start}:end={end},setpts=PTS-STARTPTS[v{i}];"
-                      f"[0:a]atrim=start={start}:end={end},asetpts=PTS-STARTPTS[a{i}];"
-                  )
-                  concat_inputs += f"[v{i}][a{i}]"
-
-              filter_complex += (
-                  f"{concat_inputs}concat=n={len(parts)}:v=1:a=1[outv][outa]"
-              )
-
-              ffmpeg_cmd = (
-                  f'ffmpeg -y '
-                  f'-i "{source}" '
-                  f'-filter_complex "{filter_complex}" '
-                  f'-map "[outv]" '
-                  f'-map "[outa]" '
-                  f'-c:v libx264 '
-                  f'-c:a aac '
-                  f'video.mp4'
-              )
-
-              print("Running FFmpeg...")
-              if os.system(ffmpeg_cmd) != 0:
-                  print("FFmpeg gagal memotong video.")
-                  sys.exit(1)
-
-          else:
-              os.rename(source, "video.mp4")
-
-          print("Proses download Drive dan pemotongan selesai!")
-          PYTHON
-
-      - name: Setup Node.js
-        if: steps.process_video.outputs.skip_upload != 'true'
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install Node Dependencies
-        if: steps.process_video.outputs.skip_upload != 'true'
-        run: |
-          npm install googleapis
-
-      - name: Upload to YouTube via Node.js
-        if: steps.process_video.outputs.skip_upload != 'true'
-        env:
-          CLIENT_ID: ${{ secrets[format('YOUTUBE_CLIENT_ID_f044_{0}', github.event.inputs.channel)] }}
-          CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_f044_{0}', github.event.inputs.channel)] }}
-          REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_f044_{0}', github.event.inputs.channel)] }}
-
-          VIDEO_TITLE: ${{ github.event.inputs.judul }}
-          VIDEO_DESCRIPTION: ${{ github.event.inputs.deskripsi }}
-          PUBLISH_DATE: ${{ github.event.inputs.tanggal_bulan_tahun }}
-          VIDEO_TIME: ${{ github.event.inputs.jam_tayang }}
-          LOCATION: ${{ github.event.inputs.lokasi }}
-          TAGS: ${{ github.event.inputs.tag }}
-          AI_CONTENT: ${{ github.event.inputs.penggunaan_ai }}
-          AUDIENCE: ${{ github.event.inputs.pilih_audiens }}
-          AGE_RESTRICTION: ${{ github.event.inputs.pembatasan_usia }}
-          THUMBNAIL_ID: ""
-
-        run: |
-          node upload.js
+upload().catch(err => {
+  console.error("❌ UPLOAD GAGAL");
+  console.error(err?.response?.data || err.message || err);
+  process.exit(1);
+});
