@@ -59,10 +59,9 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install FFmpeg & gdown
+      # TANPA apt-get update & apt-get install ffmpeg (FFmpeg sudah ada di runner Ubuntu)
+      - name: Install Python Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg
           pip install -U gdown requests
 
       - name: Run Video Processing Script from Google Drive
@@ -105,7 +104,7 @@ jobs:
 
           exit_code = os.system(download_cmd)
 
-          # Ambil file mp4 hasil download
+          # Ambil file mp4 hasil download jika link folder
           if "folders" in video_url:
               mp4_files = glob.glob("/tmp/gdrive_folder/*.mp4") + glob.glob("/tmp/gdrive_folder/**/*.mp4", recursive=True)
               if mp4_files:
