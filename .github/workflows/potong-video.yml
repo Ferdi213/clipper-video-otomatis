@@ -64,7 +64,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
-          pip install yt-dlp
+          pip install -U yt-dlp
+
+          - name: Create cookies.txt
+            run: |
+             cat > cookies.txt << 'EOF'
+             ${{ secrets.YT_COOKIES }}
+             EOF
 
       # 3. Download dan Potong Video (Membaca inputs.video_url & inputs.timestamps)
       - name: Run Video Processing Script
@@ -81,7 +87,13 @@ jobs:
               print("Error: URL Video kosong."); sys.exit(1)
               
           print(f"Mengunduh video via yt-dlp dari: {video_url}")
-          os.system(f"yt-dlp -f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]\" \"{video_url}\" -o video_mentah.mp4")
+          os.system(
+          f'yt-dlp '
+          f'--cookies cookies.txt '
+          f'-f "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]" '
+            f'"{video_url}" '
+           f'-o video_mentah.mp4'
+          )
           
           if not os.path.exists("video_mentah.mp4"):
               print("Gagal mengunduh video"); sys.exit(1)
