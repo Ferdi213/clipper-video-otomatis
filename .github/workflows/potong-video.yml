@@ -2,7 +2,7 @@ name: Process and Cut Video
 
 on:
   repository_dispatch:
-    types: [process_video_event] # Pemicu dari n8n
+    types: [potong_video_event] # Pemicu dari n8n
 
 jobs:
   build-and-process:
@@ -34,8 +34,8 @@ jobs:
           python process_video.py
 
       # 4. Upload langsung ke YouTube
-      - name: Upload to YouTube
-        env:
-          YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
-        run: |
-          python upload_to_youtube.py
+      #- name: Upload to YouTube
+     #   env:
+        #  YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
+     #   run: |
+          #python upload_to_youtube.py
