@@ -95,6 +95,7 @@ jobs:
           import os
           import sys
           import re
+          import subprocess
 
           def extract_drive_ids(url_string):
               if not url_string:
@@ -108,6 +109,13 @@ jobs:
                   if not m: m = re.search(r'id=([a-zA-Z0-9_-]+)', url)
                   if m: drive_ids.append(m.group(1))
               return drive_ids
+
+          def has_audio_stream(file_path):
+              if not os.path.exists(file_path):
+                  return False
+              cmd = f'ffprobe -v error -select_streams a -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 "{file_path}"'
+              result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+              return bool(result.stdout.strip())
 
           video_url = os.environ.get("VIDEO_URL", "").strip()
           timestamps_raw = os.environ.get("TIMESTAMPS", "").strip()
@@ -139,67 +147,107 @@ jobs:
                   for f_name in downloaded_videos: f.write(f"file '{f_name}'\n")
               os.system('ffmpeg -y -f concat -safe 0 -i v_concat.txt -c:v libx264 -c:a aac source_video.mp4')
 
-          # --- 2. DOWNLOAD AUDIO (Mendukung MP3, WAV, M4A, AAC) ---
+          # --- 2. DOWNLOAD AUDIO (Mendukung MP3, WAV, M4A, AAC tanpa ekstensi mentah) ---
           audio_ids = extract_drive_ids(audio_url)
           downloaded_audios = []
+          
           for idx, d_id in enumerate(audio_ids):
-              # Menggunakan ekstensi universal .raw_audio saat download dari gdown
-              f_name = f"a_input_{idx}.raw_audio"
-              if os.system(f'gdown "https://drive.google.com/uc?id={d_id}" -O {f_name}') == 0:
-                  downloaded_audios.append(f_name)
+              # Menggunakan nama tanpa ekstensi agar FFmpeg mendeteksi format otomatis saat dibaca
+              f_name = f"a_input_{idx}"
+              cmd = f'gdown "https://drive.google.com/uc?id={d_id}" -O "{f_name}"'
+              print(f"Mencoba download audio ke-{idx+1} (ID: {d_id})...")
+              
+              if os.system(cmd) == 0 and os.path.exists(f_name):
+                  # Konversi langsung ke AAC standar
+                  conv_cmd = f'ffmpeg -y -i "{f_name}" -vn -c:a aac -b:a 192k "a_converted_{idx}.aac"'
+                  if os.system(conv_cmd) == 0:
+                      downloaded_audios.append(f"a_converted_{idx}.aac")
 
-          has_audio = len(downloaded_audios) > 0
-          if has_audio:
+          if downloaded_audios:
               if len(downloaded_audios) == 1:
-                  # Dikompres ulang ke standar AAC agar tidak bermasalah saat pemotongan filter_complex
-                  os.system(f'ffmpeg -y -i "{downloaded_audios[0]}" -c:a aac source_audio.aac')
+                  os.rename(downloaded_audios[0], "source_audio.aac")
               else:
-                  # Jika audionya banyak, konversi masing-masing ke format aac dulu sebelum digabung
-                  for idx, f_name in enumerate(downloaded_audios):
-                      os.system(f'ffmpeg -y -i "{f_name}" -c:a aac temp_a_{idx}.aac')
-                  
                   with open("a_concat.txt", "w") as f:
-                      for idx in range(len(downloaded_audios)): 
-                          f.write(f"file 'temp_a_{idx}.aac'\n")
-                  
+                      for f_name in downloaded_audios:
+                          f.write(f"file '{f_name}'\n")
                   os.system('ffmpeg -y -f concat -safe 0 -i a_concat.txt -c:a copy source_audio.aac')
 
+          # --- INSPEKSI STREAM FFMPEG BERSAMA FFPROBE ---
+          print("\n🔍 --- HASIL INSPEKSI FFPROBE ---")
+          print(">> [PROBE VIDEO]:")
+          os.system("ffprobe -hide_banner source_video.mp4")
+          
+          if os.path.exists("source_audio.aac"):
+              print("\n>> [PROBE AUDIO EKSTERNAL]:")
+              os.system("ffprobe -hide_banner source_audio.aac")
+          else:
+              print("\n⚠️ File source_audio.aac TIDAK DITEMUKAN.")
+          print("------------------------------------\n")
+
+          # Cek keberadaan stream audio
+          has_ext_audio = os.path.exists("source_audio.aac") and has_audio_stream("source_audio.aac")
+          video_has_audio = has_audio_stream("source_video.mp4")
+
+          print(f"Status Audio Eksternal: {'Tersedia' if has_ext_audio else 'Tidak Ada / Gagal'}")
+          print(f"Status Audio Bawaan Video: {'Tersedia' if video_has_audio else 'Tidak Ada (Video Bisu)'}")
+
           # --- 3. PROSES POTONG & COCOKKAN VIA FFMPEG ---
-          v_parts = [p.strip() for p in timestamps_raw.split(",") if p.strip()] if timestamps_raw else []
-          a_parts = [p.strip() for p in audio_timestamps_raw.split(",") if p.strip()] if audio_timestamps_raw else []
+          v_parts = [p.strip() for p in re.split(r'[,|]+', timestamps_raw) if p.strip()] if timestamps_raw else []
+          a_parts = [p.strip() for p in re.split(r'[,|]+', audio_timestamps_raw) if p.strip()] if audio_timestamps_raw else []
 
           if v_parts:
               filter_complex = ""
               concat_inputs = ""
+              include_audio_in_concat = True
               
               for i, v_part in enumerate(v_parts):
                   v_start, v_end = v_part.split("-")
                   filter_complex += f"[0:v]trim=start={v_start}:end={v_end},setpts=PTS-STARTPTS[v{i}];"
                   
-                  if has_audio and i < len(a_parts):
+                  if has_ext_audio and i < len(a_parts):
+                      # Menggunakan audio eksternal [1:a]
                       a_start, a_end = a_parts[i].split("-")
-                      # Memotong audio yang sudah seragam berformat .aac (input ke-1)
                       filter_complex += f"[1:a]atrim=start={a_start}:end={a_end},asetpts=PTS-STARTPTS[a{i}];"
-                  else:
+                      concat_inputs += f"[v{i}][a{i}]"
+                  elif video_has_audio:
+                      # Menggunakan audio bawaan video [0:a]
                       filter_complex += f"[0:a]atrim=start={v_start}:end={v_end},asetpts=PTS-STARTPTS[a{i}];"
+                      concat_inputs += f"[v{i}][a{i}]"
+                  else:
+                      # Tidak ada audio sama sekali, hanya proses videonya saja
+                      include_audio_in_concat = False
+                      concat_inputs += f"[v{i}]"
+
+              if include_audio_in_concat:
+                  filter_complex += f"{concat_inputs}concat=n={len(v_parts)}:v=1:a=1[outv][outa]"
                   
-                  concat_inputs += f"[v{i}][a{i}]"
+                  if has_ext_audio:
+                      ffmpeg_cmd = (
+                          f'ffmpeg -y -i "source_video.mp4" -i "source_audio.aac" '
+                          f'-filter_complex "{filter_complex}" '
+                          f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
+                      )
+                  else:
+                      ffmpeg_cmd = (
+                          f'ffmpeg -y -i "source_video.mp4" '
+                          f'-filter_complex "{filter_complex}" '
+                          f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
+                      )
+              else:
+                  # Kasus khusus: jika tidak ada audio eksternal DAN video aslinya bisu
+                  filter_complex += f"{concat_inputs}concat=n={len(v_parts)}:v=1[outv]"
+                  ffmpeg_cmd = (
+                      f'ffmpeg -y -i "source_video.mp4" '
+                      f'-filter_complex "{filter_complex}" '
+                      f'-map "[outv]" -c:v libx264 video.mp4'
+                  )
 
-              filter_complex += f"{concat_inputs}concat=n={len(v_parts)}:v=1:a=1[outv][outa]"
-
-              input_audio_args = '-i "source_audio.aac" ' if has_audio else ''
-              ffmpeg_cmd = (
-                  f'ffmpeg -y -i "source_video.mp4" {input_audio_args}'
-                  f'-filter_complex "{filter_complex}" '
-                  f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
-              )
-              
               print("Menjalankan penyusunan Video + Audio...")
               if os.system(ffmpeg_cmd) != 0:
                   print("❌ FFmpeg gagal memproses kecocokan audio video.")
                   sys.exit(1)
           else:
-              if has_audio:
+              if has_ext_audio:
                   os.system('ffmpeg -y -i source_video.mp4 -i source_audio.aac -map 0:v:0 -map 1:a:0 -c:v copy -c:a aac video.mp4')
               else:
                   os.rename("source_video.mp4", "video.mp4")
