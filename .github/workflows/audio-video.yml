@@ -147,18 +147,18 @@ jobs:
                   for f_name in downloaded_videos: f.write(f"file '{f_name}'\n")
               os.system('ffmpeg -y -f concat -safe 0 -i v_concat.txt -c:v libx264 -c:a aac source_video.mp4')
 
-          # --- 2. DOWNLOAD AUDIO (Mendukung MP3, WAV, M4A, AAC tanpa ekstensi mentah) ---
+          # --- 2. DOWNLOAD AUDIO (MP3, WAV, M4A, AAC) ---
           audio_ids = extract_drive_ids(audio_url)
           downloaded_audios = []
           
           for idx, d_id in enumerate(audio_ids):
-              # Menggunakan nama tanpa ekstensi agar FFmpeg mendeteksi format otomatis saat dibaca
+              # Simpan tanpa ekstensi agar FFmpeg mendeteksi otomatis format mentah dari Drive
               f_name = f"a_input_{idx}"
               cmd = f'gdown "https://drive.google.com/uc?id={d_id}" -O "{f_name}"'
               print(f"Mencoba download audio ke-{idx+1} (ID: {d_id})...")
               
               if os.system(cmd) == 0 and os.path.exists(f_name):
-                  # Konversi langsung ke AAC standar
+                  # Konversi ke format AAC standar
                   conv_cmd = f'ffmpeg -y -i "{f_name}" -vn -c:a aac -b:a 192k "a_converted_{idx}.aac"'
                   if os.system(conv_cmd) == 0:
                       downloaded_audios.append(f"a_converted_{idx}.aac")
@@ -198,44 +198,43 @@ jobs:
           if v_parts:
               filter_complex = ""
               concat_inputs = ""
-              include_audio_in_concat = True
               
               for i, v_part in enumerate(v_parts):
                   v_start, v_end = v_part.split("-")
                   filter_complex += f"[0:v]trim=start={v_start}:end={v_end},setpts=PTS-STARTPTS[v{i}];"
                   
                   if has_ext_audio and i < len(a_parts):
-                      # Menggunakan audio eksternal [1:a]
+                      # Mengambil Audio Eksternal dari Input Ke-2 [1:a]
                       a_start, a_end = a_parts[i].split("-")
                       filter_complex += f"[1:a]atrim=start={a_start}:end={a_end},asetpts=PTS-STARTPTS[a{i}];"
-                      concat_inputs += f"[v{i}][a{i}]"
                   elif video_has_audio:
-                      # Menggunakan audio bawaan video [0:a]
+                      # Jika tidak ada audio eksternal, gunakan Audio Asli Video [0:a]
                       filter_complex += f"[0:a]atrim=start={v_start}:end={v_end},asetpts=PTS-STARTPTS[a{i}];"
+                  
+                  if has_ext_audio or video_has_audio:
                       concat_inputs += f"[v{i}][a{i}]"
                   else:
-                      # Tidak ada audio sama sekali, hanya proses videonya saja
-                      include_audio_in_concat = False
                       concat_inputs += f"[v{i}]"
 
-              if include_audio_in_concat:
+              if has_ext_audio or video_has_audio:
                   filter_complex += f"{concat_inputs}concat=n={len(v_parts)}:v=1:a=1[outv][outa]"
-                  
-                  if has_ext_audio:
-                      ffmpeg_cmd = (
-                          f'ffmpeg -y -i "source_video.mp4" -i "source_audio.aac" '
-                          f'-filter_complex "{filter_complex}" '
-                          f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
-                      )
-                  else:
-                      ffmpeg_cmd = (
-                          f'ffmpeg -y -i "source_video.mp4" '
-                          f'-filter_complex "{filter_complex}" '
-                          f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
-                      )
               else:
-                  # Kasus khusus: jika tidak ada audio eksternal DAN video aslinya bisu
                   filter_complex += f"{concat_inputs}concat=n={len(v_parts)}:v=1[outv]"
+
+              # BUILD COMMAND FFMPEG DENGAN DUA INPUT UTAMA (-i source_video.mp4 DAN -i source_audio.aac)
+              if has_ext_audio:
+                  ffmpeg_cmd = (
+                      f'ffmpeg -y -i "source_video.mp4" -i "source_audio.aac" '
+                      f'-filter_complex "{filter_complex}" '
+                      f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
+                  )
+              elif video_has_audio:
+                  ffmpeg_cmd = (
+                      f'ffmpeg -y -i "source_video.mp4" '
+                      f'-filter_complex "{filter_complex}" '
+                      f'-map "[outv]" -map "[outa]" -c:v libx264 -c:a aac video.mp4'
+                  )
+              else:
                   ffmpeg_cmd = (
                       f'ffmpeg -y -i "source_video.mp4" '
                       f'-filter_complex "{filter_complex}" '
@@ -243,6 +242,7 @@ jobs:
                   )
 
               print("Menjalankan penyusunan Video + Audio...")
+              print(f"Executing: {ffmpeg_cmd}")
               if os.system(ffmpeg_cmd) != 0:
                   print("❌ FFmpeg gagal memproses kecocokan audio video.")
                   sys.exit(1)
