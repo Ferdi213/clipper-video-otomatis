@@ -183,23 +183,52 @@ jobs:
         run: |
           npm install googleapis
 
-      - name: Upload to YouTube via Node.js
+      - name: Format Channel Name to Uppercase
+        if: steps.process_video.outputs.skip_upload != 'true'
+        id: format_channel
+        run: |
+          RAW_CHANNEL="${{ github.event.inputs.channelName }}"
+          UPPER_CHANNEL=$(echo "$RAW_CHANNEL" | tr '[:lower:]' '[:upper:]')
+          echo "TARGET_CHANNEL=$UPPER_CHANNEL" >> $GITHUB_OUTPUT
+          echo "Channel diformat menjadi: $UPPER_CHANNEL"
+
+   #   - name: Upload to YouTube via Node.js
+      #  if: steps.process_video.outputs.skip_upload != 'true'
+    #    env:
+        #  CLIENT_ID: ${{ secrets[format('YOUTUBE_CLIENT_ID_f044_{0}', steps.format_channel.outputs.TARGET_CHANNEL)] }}
+          #CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_f044_{0}', steps.format_channel.outputs.TARGET_CHANNEL)] }}
+         # REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_f044_{0}', steps.format_channel.outputs.TARGET_CHANNEL)] }}
+
+         # VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
+          #VIDEO_DESCRIPTION: ${{ github.event.inputs.videoDescription }}
+          #PUBLISH_DATE: ${{ github.event.inputs.publishDate }}
+         # VIDEO_TIME: ${{ github.event.inputs.videoTime }}
+          #THUMBNAIL_ID: ${{ github.event.inputs.thumbnailId }}
+         # LOCATION: ${{ github.event.inputs.location || '' }}
+         # TAGS: ${{ github.event.inputs.tags || '' }}
+          #AI_CONTENT: ${{ github.event.inputs.aiContent || '' }}
+          #AUDIENCE: ${{ github.event.inputs.audience || '' }}
+          #AGE_RESTRICTION: ${{ github.event.inputs.ageRestriction || '' }}
+
+       # run: |
+         # node upload.js
+
+      # 🌟 PENAMBAHAN STEP KHUSUS: Mengirimkan File video.mp4 ke Telegram
+      - name: Send Video to Telegram
         if: steps.process_video.outputs.skip_upload != 'true'
         env:
-          CLIENT_ID: ${{ secrets[format('YOUTUBE_CLIENT_ID_f044_{0}', github.event.inputs.channelName)] }}
-          CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_f044_{0}', github.event.inputs.channelName)] }}
-          REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_f044_{0}', github.event.inputs.channelName)] }}
-
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
-          VIDEO_DESCRIPTION: ${{ github.event.inputs.videoDescription }}
-          PUBLISH_DATE: ${{ github.event.inputs.publishDate }}
-          VIDEO_TIME: ${{ github.event.inputs.videoTime }}
-          THUMBNAIL_ID: ${{ github.event.inputs.thumbnailId }}
-          LOCATION: ${{ github.event.inputs.location || '' }}
-          TAGS: ${{ github.event.inputs.tags || '' }}
-          AI_CONTENT: ${{ github.event.inputs.aiContent || '' }}
-          AUDIENCE: ${{ github.event.inputs.audience || '' }}
-          AGE_RESTRICTION: ${{ github.event.inputs.ageRestriction || '' }}
-
         run: |
-          node upload.js
+          echo "Memulai pengiriman video ke Telegram..."
+          
+          if [ -f "video.mp4" ]; then
+            curl -v -F "video=@video.mp4" \
+              -F "chat_id=$TELEGRAM_CHAT_ID" \
+              -F "caption=🚀 Video Baru Selesai Diproses & Diunggah!%0A%0A📌 *Judul:* $VIDEO_TITLE" \
+              -F "parse_mode=Markdown" \
+              "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo"
+          else
+            echo "⚠️ File video.mp4 tidak ditemukan, pengiriman Telegram dilewati."
+          fi
