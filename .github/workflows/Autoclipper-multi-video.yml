@@ -84,8 +84,11 @@ jobs:
         env:
           VIDEO_URL: ${{ github.event.inputs.video_url }}
           TIMESTAMPS: ${{ github.event.inputs.timestamps }}
-        run: |
-          python << 'PYTHON'
+          AUDIO_URL: ${{ github.event.inputs.audio_url }}
+          AUDIO_TIMESTAMPS: ${{ github.event.inputs.audio_timestamps }}run: |
+        
+        python << 'PYTHON'
+          
           import os
           import sys
           import re
