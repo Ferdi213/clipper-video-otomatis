@@ -151,22 +151,26 @@ jobs:
                               dst = f"audio_{idx}{ext}"
                               shutil.move(src, dst)
                               downloaded_files.append(dst)
-              else:
-                before = set(glob.glob("downloads/*"))
+                else:
+                    before = set(glob.glob("downloads/*"))
 
-                os.system(f'gdown --fuzzy "{url}" -O "downloads/audio_{idx}"')
+                    os.system(f'gdown --fuzzy "{url}" -O "downloads/audio_{idx}"')
 
-                after = set(glob.glob("downloads/*"))
-                new_files = list(after - before)
+                    after = set(glob.glob("downloads/*"))
+                    new_files = list(after - before)
 
-               if new_files:
+                    if new_files:
                         src = new_files[0]
                         ext = os.path.splitext(src)[1].lower()
 
-                          if ext in AUDIO_EXTS:
-                          dst = f"audio_{idx}{ext}"
-                          shutil.move(src, dst)
-                          downloaded_files.append(dst)
+                        if ext in AUDIO_EXTS:
+                            dst = f"audio_{idx}{ext}"
+                            shutil.move(src, dst)
+                            downloaded_files.append(dst)
+                        else:
+                            print(f"⚠️ Format audio tidak didukung: {src}")
+                            if os.path.exists(src):
+                                os.remove(src)
                  else:
                       if os.path.exists(src):
                        os.remove(src)
