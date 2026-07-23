@@ -100,8 +100,6 @@ jobs:
           audio_timestamps_raw = os.environ.get("AUDIO_TIMESTAMPS", "").strip()
 
           downloaded_files = []
-          video_files = []
-          audio_files = []
           AUDIO_EXTS = {'.mp3', '.wav', '.m4a', '.aac', '.flac', '.ogg'}
 
           # 1. LOOP DOWNLOAD VIDEO
@@ -131,55 +129,42 @@ jobs:
                           if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
                               downloaded_files.append(file_name)
 
-            # 2. LOOP DOWNLOAD AUDIO
-            if audio_url:
-            audio_urls = re.split(r'[\n,]+', audio_url)
- 
-           for idx, url in enumerate(audio_urls):
-           url = url.strip()
-            if not url:
-                 continue
+          # 2. LOOP DOWNLOAD AUDIO
+          if audio_url:
+              audio_urls = re.split(r'[\n,]+', audio_url)
+              for idx, url in enumerate(audio_urls):
+                  url = url.strip()
+                  if not url: continue
+                  print(f"Memproses Audio ke-{idx+1}: {url}")
 
-             print(f"Memproses Audio ke-{idx+1}: {url}")
+                  if "mega.nz" in url:
+                      before = set(glob.glob("downloads/*"))
+                      os.system(f'megadl "{url}" --path downloads')
+                      after = set(glob.glob("downloads/*"))
+                      new_files = list(after - before)
+                      if new_files:
+                          src = new_files[0]
+                          ext = os.path.splitext(src)[1].lower()
+                          if ext in AUDIO_EXTS:
+                              dst = f"audio_{idx}{ext}"
+                              shutil.move(src, dst)
+                              downloaded_files.append(dst)
+                  else:
+                      before = set(glob.glob("downloads/*"))
+                      os.system(f'gdown --fuzzy "{url}" -O "downloads/audio_{idx}"')
+                      after = set(glob.glob("downloads/*"))
+                      new_files = list(after - before)
+                      if new_files:
+                          src = new_files[0]
+                          ext = os.path.splitext(src)[1].lower()
+                          if ext in AUDIO_EXTS:
+                              dst = f"audio_{idx}{ext}"
+                              shutil.move(src, dst)
+                              downloaded_files.append(dst)
+                          else:
+                              print(f"⚠️ Format audio tidak didukung: {src}")
+                              if os.path.exists(src): os.remove(src)
 
-             if "mega.nz" in url:
-             before = set(glob.glob("downloads/*"))
-
-            os.system(f'megadl "{url}" --path downloads')
-
-            after = set(glob.glob("downloads/*"))
-            new_files = list(after - before)
-
-            if new_files:
-                src = new_files[0]
-                ext = os.path.splitext(src)[1].lower()
-
-                if ext in AUDIO_EXTS:
-                    dst = f"audio_{idx}{ext}"
-                    shutil.move(src, dst)
-                    downloaded_files.append(dst)
-
-             else:
-              before = set(glob.glob("downloads/*"))
-
-            os.system(f'gdown --fuzzy "{url}" -O "downloads/audio_{idx}"')
-
-            after = set(glob.glob("downloads/*"))
-            new_files = list(after - before)
-
-            if new_files:
-                src = new_files[0]
-                ext = os.path.splitext(src)[1].lower()
-
-                if ext in AUDIO_EXTS:
-                    dst = f"audio_{idx}{ext}"
-                    shutil.move(src, dst)
-                    downloaded_files.append(dst)
-                else:
-                    print(f"⚠️ Format audio tidak didukung: {src}")
-                    if os.path.exists(src):
-                        os.remove(src)
-                     
           if not downloaded_files:
               print("❌ Tidak ada file yang berhasil di-download.")
               sys.exit(1)
