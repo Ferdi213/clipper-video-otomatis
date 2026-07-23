@@ -114,15 +114,17 @@ jobs:
 
       - name: Merge Media
         run: |
-          # 1. Gabung Video
+          # 1. Gabung Video dengan MP4Box
           if ls downloads/vid_*.mp4 >/dev/null 2>&1; then
-            # Urutkan file
             files=($(ls downloads/vid_*.mp4 | sort -V))
-          cmd="MP4Box -new video_mentah.mp4"
+            cmd="MP4Box -new video_mentah.mp4"
             for f in "${files[@]}"; do
               cmd="$cmd -cat \"$f\""
             done
             eval $cmd
+          else
+            echo "❌ Tidak ada file video untuk digabung!"
+            exit 1
           fi
 
           # 2. Gabung Audio & Tempel ke Video
@@ -133,6 +135,7 @@ jobs:
           else
              mv video_mentah.mp4 video_final.mp4
           fi
+
           
       - name: Cut Timestamps
         run: |
