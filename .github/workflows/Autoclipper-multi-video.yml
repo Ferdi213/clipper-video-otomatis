@@ -4,19 +4,57 @@ on:
   workflow_dispatch:
     inputs:
       video_url:
-        description: "Masukkan URL (Pisahkan koma/enter, Drive atau MEGA)"
-        required: true
-        type: textarea
+        required: false
+        default: ''
       timestamps:
-        description: "Format: 00:10-00:20,00:30-00:40"
+        description: "Timestamp Video (Contoh: 1-5, 4-10)"
+        required: false
+        default: ''
+      audio_url:
+        description: "Link Google Drive Audio (MP3/WAV/M4A/AAC - Pisahkan dengan koma/enter)"
+        required: false
+        default: ''
+      audio_timestamps:
+        description: "Timestamp Audio (Contoh: 3-9, 9-14)"
         required: false
         default: ''
       videoTitle:
         description: "Judul Video"
         required: false
         default: ''
+      videoDescription:
+        description: "Deskripsi Video"
+        required: false
+        default: ''
+      tags:
+        required: false
+        default: ''
       channelName:
         description: "Nama Target Channel"
+        required: false
+        default: ''
+      location:
+        required: false
+        default: ''
+      aiContent:
+        required: false
+        default: ''
+      ageRestriction:
+        required: false
+        default: ''
+      audience:
+        required: false
+        default: ''
+      publishDate:
+        description: "Tanggal Rilis (DD-MM-YYYY)"
+        required: false
+        default: ''
+      videoTime:
+        description: "Jam Tayang (HH:MM)"
+        required: false
+        default: ''
+      thumbnailId:
+        description: "ID Thumbnail Drive"
         required: false
         default: ''
 
