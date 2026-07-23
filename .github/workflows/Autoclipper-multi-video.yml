@@ -162,9 +162,7 @@ jobs:
                       if os.path.exists(file_name) and os.path.getsize(file_name) > 0:
                       downloaded_files.append(file_name)
                       
-              if not downloaded_files:
-              print("❌ Tidak ada file yang berhasil di-download.")
-              sys.exit(1)
+              
 
           # 3. PENGELOMPOKAN
           video_files = [f for f in downloaded_files if os.path.splitext(f)[1].lower() not in AUDIO_EXTS]
