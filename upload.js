@@ -73,7 +73,12 @@ async function upload() {
     me.data.items[0].snippet.title
   );
 
-  const title = clean(process.env.VIDEO_TITLE);
+ // const title = clean(process.env.VIDEO_TITLE);
+  let title = clean(process.env.VIDEO_TITLE)
+  .replace(/\uFEFF/g, "")                    // hapus BOM
+  .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, "") // hapus karakter kontrol
+  .trim();
+  
   const description = clean(process.env.VIDEO_DESCRIPTION, "Uploaded by GitHub Actions");
 
   const publishDate = clean(process.env.PUBLISH_DATE);
