@@ -123,32 +123,113 @@ jobs:
               echo "=============================="
           done
 
-      - name: Detect Video Mode
+            - name: Detect Video Mode (Akurat Berdasarkan Scene)
         run: |
           TOTAL=0
 
-          for f in downloads/raw_*.*; do
-          mime=$(file --mime-type -b "$f")
+          files=($(ls downloads/raw_*.* | sort -V))
+          num_files=${#files[@]}
+          i=0
 
-          if [[ "$mime" == audio/* ]] || [[ "$mime" == video/* ]]; then
-            dur=$(ffprobe -v error \
-            -show_entries format=duration \
-            -of default=noprint_wrappers=1:nokey=1 "$f")
+          while [ $i -lt $num_files ]; do
 
-          TOTAL=$(echo "$TOTAL + $dur" | bc)
-          fi
+            current="${files[$i]}"
+            next_idx=$((i+1))
+            next=""
+
+            [ $next_idx -lt $num_files ] && next="${files[$next_idx]}"
+
+            current_mime=$(file --mime-type -b "$current")
+
+            SCENE_DUR=0
+
+
+            # GAMBAR + AUDIO
+            if [[ "$current_mime" == image/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+              if [[ "$next_mime" == audio/* ]]; then
+
+                SCENE_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$next")
+
+                i=$((i+2))
+              fi
+
+
+            # VIDEO + AUDIO
+            elif [[ "$current_mime" == video/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+              if [[ "$next_mime" == audio/* ]]; then
+
+                VIDEO_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$current")
+
+                AUDIO_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$next")
+
+
+                SCENE_DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
+                'BEGIN {if(v<a) print v; else print a}')
+
+                i=$((i+2))
+              fi
+
+
+            # AUDIO SAJA
+            elif [[ "$current_mime" == audio/* ]]; then
+
+              SCENE_DUR=$(ffprobe -v error \
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$current")
+
+              i=$((i+1))
+
+
+            # VIDEO SAJA
+            elif [[ "$current_mime" == video/* ]]; then
+
+              SCENE_DUR=$(ffprobe -v error \
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$current")
+
+              i=$((i+1))
+
+            else
+
+              i=$((i+1))
+
+            fi
+
+
+            echo "SCENE DURASI = $SCENE_DUR"
+
+            TOTAL=$(echo "$TOTAL + $SCENE_DUR" | bc)
+
           done
 
-           echo "TOTAL=$TOTAL"
+
+          echo "TOTAL FINAL = $TOTAL"
+
 
           if (( $(echo "$TOTAL <= 60" | bc -l) )); then
-           echo "WIDTH=720" >> $GITHUB_ENV
-           echo "HEIGHT=1280" >> $GITHUB_ENV
-           echo "VIDEO_TYPE=SHORT" >> $GITHUB_ENV
+
+            echo "WIDTH=720" >> $GITHUB_ENV
+            echo "HEIGHT=1280" >> $GITHUB_ENV
+            echo "VIDEO_TYPE=SHORT" >> $GITHUB_ENV
+
           else
-           echo "WIDTH=1280" >> $GITHUB_ENV
-           echo "HEIGHT=720" >> $GITHUB_ENV
-           echo "VIDEO_TYPE=LONG" >> $GITHUB_ENV
+
+            echo "WIDTH=1280" >> $GITHUB_ENV
+            echo "HEIGHT=720" >> $GITHUB_ENV
+            echo "VIDEO_TYPE=LONG" >> $GITHUB_ENV
+
           fi
      
       - name: Sync & Encode (Super Ringan & Hemat CPU)
