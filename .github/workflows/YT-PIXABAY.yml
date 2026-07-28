@@ -158,7 +158,8 @@ jobs:
                 i=$((i+2))
               fi
 
-
+             fi
+             
             # VIDEO + AUDIO
             elif [[ "$current_mime" == video/* ]] && [ -n "$next" ]; then
 
