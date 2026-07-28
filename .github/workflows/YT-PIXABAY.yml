@@ -48,10 +48,9 @@ on:
 jobs:
   proses:
     runs-on: ubuntu-latest
-    jobs:
-  runs-on: ubuntu-latest
-  timeout-minutes: 05
-     steps :
+    timeout-minutes: 10
+    
+    steps :
       #Baru👇
       - name: Checkout Repository
         uses: actions/checkout@v4
