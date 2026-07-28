@@ -48,7 +48,10 @@ on:
 jobs:
   proses:
     runs-on: ubuntu-latest
-    steps:
+    jobs:
+  runs-on: ubuntu-latest
+  timeout-minutes: 05
+     steps :
       #Baru👇
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -102,7 +105,22 @@ jobs:
 
           elif [[ "$url" == http* ]]; then
 
-            curl -L --retry 3 "$url" -o "$output"
+             echo "Download: $url"
+
+             timeout 600 curl -L \
+            --connect-timeout 20 \
+             --retry 2 \
+              --retry-delay 5 \
+             "$url" \
+             -o "$output"
+
+           if [ $? -ne 0 ]; then
+             echo "❌ Download gagal:"
+               echo "$url"
+             echo "Batalkan proses agar pasangan scene tidak rusak"
+             exit 1
+            fi
+
 
           else
 
@@ -119,7 +137,7 @@ jobs:
              echo "=============================="
               echo "FILE : $output"
             file "$output"
-             ffprobe -v error "$output" || true
+            timeout 30 ffprobe -v error "$output" || true
               echo "=============================="
           done
 
