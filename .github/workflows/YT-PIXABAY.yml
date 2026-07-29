@@ -350,9 +350,12 @@ jobs:
                -i "$f" \
               -i "$next_f" \
               -filter_complex "\
-              [0:v]setpts=PTS-STARTPTS,\
-              scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-               crop=${WIDTH}:${HEIGHT},\
+              [0:v]split=2[bg][fg];\
+              [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+              crop=${WIDTH}:${HEIGHT},\
+              boxblur=20:10[bg];\
+             [fg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease[fg];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2,\
               format=yuv420p[v]" \
               -map "[v]" \
               -map 1:a \
@@ -376,11 +379,14 @@ jobs:
               # KASUS D: VIDEO SAJA
             ffmpeg -y \
             -i "$f" \
-            -filter_complex "\
-           [0:v]setpts=PTS-STARTPTS,\
-           scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-            crop=${WIDTH}:${HEIGHT},\
-           format=yuv420p[v]" \
+           -filter_complex "\
+            [0:v]split=2[bg][fg];\
+           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+           crop=${WIDTH}:${HEIGHT},\
+            boxblur=20:10[bg];\
+           [fg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=decrease[fg];\
+           [bg][fg]overlay=(W-w)/2:(H-h)/2,\
+           format=yuv420p[v]"  \
            -map "[v]" \
            -map 0:a? \
            -c:v libx264 \
