@@ -257,7 +257,7 @@ jobs:
           echo "Ukuran : ${WIDTH}x${HEIGHT}"
           
           if [ "$VIDEO_TYPE" = "SHORT" ]; then
-            FG_SCALE=1240
+            FG_SCALE=1152
           else
              FG_SCALE=${HEIGHT}
           fi
