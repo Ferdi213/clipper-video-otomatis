@@ -406,7 +406,7 @@ jobs:
           -loop 1 \
            -i "$f" \
            -i "$next_f" \
-           -vf "$VF" \
+           -vf "$VF,subtitles=subtitle.srt:force_style='Fontsize=18,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=2,Shadow=1,Alignment=2'" \
            $FF_LIGHT \
            -shortest \
            "ready/video_$i.mp4"
@@ -428,7 +428,7 @@ jobs:
               boxblur=20:10[bg];\
              [fg]scale=-2:960[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-              format=yuv420p[v]" \
+              format=yuv420p,subtitles=subtitle.srt:force_style='Fontsize=18,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=2,Shadow=1,Alignment=2'[v]" \
               -map "[v]" \
               -map 1:a \
               -c:v libx264 \
