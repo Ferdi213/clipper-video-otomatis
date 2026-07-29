@@ -295,8 +295,8 @@ jobs:
           $(awk "BEGIN{print int(($END%3600)/60)}") \
           $(awk "BEGIN{print int($END%60)}"))
 
-          TEXT=$(echo "${{ github.event.inputs.urls }}" | cut -d',' -f$IDX)
-
+          TEXT=$(echo "${{ github.event.inputs.scriptTTS }}" \
+          | awk -F '\\|\\|\\|' "{print \$$IDX}")
           echo "$IDX" >> subtitle.srt
           echo "$START_FMT --> $END_FMT" >> subtitle.srt
           echo "$TEXT" >> subtitle.srt
