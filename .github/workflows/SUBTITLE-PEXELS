@@ -1,0 +1,481 @@
+name: AUTO MERGE DRIVE DAN MEGA PEXELS POST YOUTUBE
+
+on:
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Masukkan URL (Pisahkan koma, contoh: vid1,aud1,img1,aud2,vid3)'
+        required: true
+        type: textarea
+      jobId:
+        description: "ID Job dari Hugging Face"
+        required: true
+      videoTitle:
+        description: "Judul Video"
+        required: true
+      videoDescription:
+        description: "Deskripsi Video"
+        required: true
+      publishDate:
+        description: "Tanggal Rilis YouTube (YYYY-MM-DD)"
+        required: true
+      videoTime:
+        description: "Jam tayang (HH:MM)"
+        required: true
+      channelName:
+        description: "Nama Target Channel"
+        required: true
+      thumbnailId:
+        description: "ID Thumbnail Google Drive (Kosongkan jika Shorts)"
+        required: false
+        default: ""
+      location:
+        description: "Lokasi Video"
+        required: false
+      tags:
+        description: "Tag Video"
+        required: false
+      aiContent:
+        description: "AI Content Declaration"
+        required: false
+      audience:
+        description: "Target Penonton"
+        required: false
+      ageRestriction:
+        description: "Age Restriction"
+        required: false
+
+jobs:
+  proses:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    
+    steps :
+      #Baru👇
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+            
+      - name: Install Dependencies
+        run: |
+          npm install googleapis node-fetch
+      #👆    
+      - name: Debug Inputs
+        run: |
+         echo "channelName = '${{ github.event.inputs.channelName }}'"
+         echo "publishDate = '${{ github.event.inputs.publishDate }}'"
+         echo "videoTime = '${{ github.event.inputs.videoTime }}'"
+         
+      - name: Setup & Download
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg megatools gpac bc
+          pip install -q gdown
+          
+          mkdir -p downloads ready
+          
+          URLS=$(echo "${{ github.event.inputs.urls }}" | tr ',' ' ')
+          arr=($URLS)
+          
+          for (( i=0; i<${#arr[@]}; i++ )); do
+            url=${arr[$i]}
+            [ -z "$url" ] && continue
+                
+            output="downloads/raw_$i"
+
+           if [[ "$url" == *"mega.nz"* ]]; then
+
+             megadl "$url" --path "$output"
+
+          elif [[ "$url" == *"drive.google.com"* ]]; then
+
+             gdown "$url" -O "$output" --quiet
+
+          elif [[ "$url" == http* ]]; then
+
+             echo "Download: $url"
+
+             timeout 600 curl -L \
+            --connect-timeout 20 \
+             --retry 2 \
+              --retry-delay 5 \
+             "$url" \
+             -o "$output"
+
+           if [ $? -ne 0 ]; then
+             echo "❌ Download gagal:"
+               echo "$url"
+             echo "Batalkan proses agar pasangan scene tidak rusak"
+             exit 1
+            fi
+
+
+          else
+
+            echo "URL tidak dikenali:"
+            echo "$url"
+            exit 1
+
+          fi
+            ext=$(file --mime-type -b "$output" | cut -d/ -f2 | sed 's/jpeg/jpg/')
+            mv "$output" "$output.$ext"
+
+            output="$output.$ext"
+
+             echo "=============================="
+              echo "FILE : $output"
+            file "$output"
+            timeout 30 ffprobe -v error "$output" || true
+              echo "=============================="
+          done
+
+      - name: Detect Video Mode (Akurat Berdasarkan Scene)
+        run: |
+          TOTAL=0
+
+          files=($(ls downloads/raw_*.* | sort -V))
+          num_files=${#files[@]}
+          i=0
+
+          while [ $i -lt $num_files ]; do
+
+            current="${files[$i]}"
+            next_idx=$((i+1))
+            next=""
+
+            [ $next_idx -lt $num_files ] && next="${files[$next_idx]}"
+
+            current_mime=$(file --mime-type -b "$current")
+
+            SCENE_DUR=0
+
+
+            # GAMBAR + AUDIO
+            if [[ "$current_mime" == image/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+              if [[ "$next_mime" == audio/* ]]; then
+
+                SCENE_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$next")
+
+                i=$((i+2))
+              
+
+             fi
+             
+            # VIDEO + AUDIO
+            elif [[ "$current_mime" == video/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+              if [[ "$next_mime" == audio/* ]]; then
+
+                VIDEO_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$current")
+
+                AUDIO_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$next")
+
+
+                SCENE_DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
+                'BEGIN {if(v<a) print v; else print a}')
+
+                i=$((i+2))
+              fi
+
+
+            # AUDIO SAJA
+            elif [[ "$current_mime" == audio/* ]]; then
+
+              SCENE_DUR=$(ffprobe -v error \
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$current")
+
+              i=$((i+1))
+
+
+            # VIDEO SAJA
+            elif [[ "$current_mime" == video/* ]]; then
+
+              SCENE_DUR=$(ffprobe -v error \
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$current")
+
+              i=$((i+1))
+
+            else
+
+              i=$((i+1))
+
+            fi
+
+
+            echo "SCENE DURASI = $SCENE_DUR"
+
+            TOTAL=$(echo "$TOTAL + $SCENE_DUR" | bc)
+
+          done
+
+
+          echo "TOTAL FINAL = $TOTAL"
+
+
+          if (( $(echo "$TOTAL <= 60" | bc -l) )); then
+
+            echo "WIDTH=720" >> $GITHUB_ENV
+            echo "HEIGHT=1280" >> $GITHUB_ENV
+            echo "VIDEO_TYPE=SHORT" >> $GITHUB_ENV
+
+          else
+
+            echo "WIDTH=1280" >> $GITHUB_ENV
+            echo "HEIGHT=720" >> $GITHUB_ENV
+            echo "VIDEO_TYPE=LONG" >> $GITHUB_ENV
+
+          fi
+     
+      - name: Sync & Encode (Super Ringan & Hemat CPU)
+        run: |
+          
+          echo "Mode : $VIDEO_TYPE"
+          echo "Ukuran : ${WIDTH}x${HEIGHT}"
+          
+          if [ "$VIDEO_TYPE" = "SHORT" ]; then
+            FG_SCALE=960
+          else
+             FG_SCALE=${HEIGHT}
+          fi
+     
+          files=($(ls downloads/raw_*.* | sort -V))
+          num_files=${#files[@]}
+          i=0
+
+          FF_LIGHT="-c:v libx264 -preset ultrafast -tune fastdecode -crf 26 -pix_fmt yuv420p -c:a aac -g 30 -r 30"
+
+          while [ $i -lt $num_files ]; do
+            f="${files[$i]}"
+            next_idx=$((i+1))
+            next_f=""
+            [ $next_idx -lt $num_files ] && next_f="${files[$next_idx]}"
+            
+            is_img=0; is_vid=0; is_aud=0; is_next_aud=0
+            mime=$(file --mime-type -b "$f")
+            [[ "$mime" == image/* ]] && is_img=1
+            [[ "$mime" == video/* ]] && is_vid=1
+            [[ "$mime" == audio/* ]] && is_aud=1
+
+            if [ -n "$next_f" ]; then
+              next_mime=$(file --mime-type -b "$next_f")
+              [[ "$next_mime" == audio/* ]] && is_next_aud=1
+            fi
+
+            
+            # KASUS A: GAMBAR + AUDIO (Fade Acak)
+            if [ $is_img -eq 1 ] && [ $is_next_aud -eq 1 ]; then
+
+               # Ambil durasi audio
+              DUR=$(ffprobe -v error \
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 \
+               "$next_f")
+
+               # Mulai fade 0.8 detik sebelum audio selesai
+               START=$(awk "BEGIN { s=$DUR-0.8; if(s<0)s=0; print s }")
+
+              # Pilih efek acak
+                EFFECT=$((RANDOM % 4))
+
+                case $EFFECT in
+
+                 0)
+                  echo ">>> Fade In"
+
+                   VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                 crop=${WIDTH}:${HEIGHT},\
+                 fade=t=in:st=0:d=0.8"
+                  ;;
+
+                   1)
+                 echo ">>> Fade Out"
+
+                VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                crop=${WIDTH}:${HEIGHT},\
+               fade=t=out:st=${START}:d=0.8"
+                ;;
+
+                 2)
+                echo ">>> Fade White In"
+
+               VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+              crop=${WIDTH}:${HEIGHT},\
+               fade=t=in:st=0:d=0.8:color=white"
+                ;;
+
+          3)
+            echo ">>> Fade White Out"
+
+            VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+          crop=${WIDTH}:${HEIGHT},\
+          fade=t=out:st=${START}:d=0.8:color=white"
+            ;;
+
+             esac
+
+          ffmpeg -y \
+          -loop 1 \
+           -i "$f" \
+           -i "$next_f" \
+           -vf "$VF" \
+           $FF_LIGHT \
+           -shortest \
+           "ready/video_$i.mp4"
+
+            i=$((i+2))
+            
+          
+
+            # KASUS B: VIDEO + AUDIO
+            elif [ $is_vid -eq 1 ] && [ $is_next_aud -eq 1 ]; then
+              
+              ffmpeg -y \
+               -i "$f" \
+              -i "$next_f" \
+              -filter_complex "\
+              [0:v]split=2[bg][fg];\
+              [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+              crop=${WIDTH}:${HEIGHT},\
+              boxblur=20:10[bg];\
+             [fg]scale=-2:960[fg];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2,\
+              format=yuv420p[v]" \
+              -map "[v]" \
+              -map 1:a \
+              -c:v libx264 \
+              -preset ultrafast \
+              -crf 26 \
+              -c:a aac \
+             -shortest \
+              "ready/video_$i.mp4"
+              
+              i=$((i+2))
+                
+            # KASUS C: AUDIO SAJA
+            elif [ $is_aud -eq 1 ]; then
+              ffmpeg -y -f lavfi -i color=c=black:s=${WIDTH}x${HEIGHT}:d=5 -i "$f" \
+              $FF_LIGHT -shortest "ready/video_$i.mp4"
+              i=$((i+1))
+
+            # KASUS D: VIDEO SAJA
+            else
+              # KASUS D: VIDEO SAJA
+            ffmpeg -y \
+            -i "$f" \
+           -filter_complex "\
+            [0:v]split=2[bg][fg];\
+           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+           crop=${WIDTH}:${HEIGHT},\
+            boxblur=20:10[bg];\
+           [fg]scale=-2:960[fg];\
+           [bg][fg]overlay=(W-w)/2:(H-h)/2,\
+           format=yuv420p[v]"  \
+           -map "[v]" \
+           -map 0:a? \
+           -c:v libx264 \
+            -preset ultrafast \
+           -crf 26 \
+            -pix_fmt yuv420p \
+            -c:a aac \
+            -r 30 \
+            -shortest \
+             "ready/video_$i.mp4"
+
+                i=$((i+1))
+            fi
+          done
+
+      - name: Merge Final (Pakai MP4Box Instan)
+        run: |
+          files=($(ls ready/video_*.mp4 | sort -V))
+          cmd="MP4Box"
+          for f in "${files[@]}"; do
+            cmd="$cmd -cat \"$f\""
+          done
+          cmd="$cmd -new output.mp4"
+          eval $cmd
+          mv output.mp4 video.mp4
+
+     - name: Burn Subtitle
+       run: |
+         if [ -f subtitle.srt ]; then
+          ffmpeg -y \
+          -i video.mp4 \
+          -vf "subtitles=subtitle.srt:force_style='FontName=Arial,FontSize=18,Outline=2'" \
+          -c:v libx264 \
+           -preset ultrafast \
+           -crf 26 \
+           -c:a copy \
+           final.mp4
+
+          mv final.mp4 video.mp4
+          else
+          echo "subtitle.srt tidak ditemukan"
+         fi
+
+    #  - name: Upload Artifact
+      #  uses: actions/upload-artifact@v4
+        #with:
+        #  name: final-video
+        #  path: output.mp4
+
+     # - name: Send Video to Telegram
+      #  env:
+         # TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        #  TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+       #   VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
+        #run: |
+       #   echo "Memulai pengiriman video ke Telegram..."
+          
+          # Perbaikan struktur pemanggilan URL API Telegram menggunakan variabel env yang aman
+          #   curl -v -F "video=@video.mp4" \
+          #   -F "chat_id=$TELEGRAM_CHAT_ID" \
+          #   -F "caption=🚀 Video Baru Selesai Dirender!%0A%0A📌 *Judul:* $VIDEO_TITLE" \
+          #   -F "parse_mode=Markdown" \
+          #   "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendVideo"
+
+      - name: Upload to YouTube
+        env:
+          # 🌟 TRIK DINAMIS: Menyusun nama rahasia secara otomatis berdasarkan input channelName
+          # Jika input berisi "Channel1", GitHub akan membaca secrets.YOUTUBE_CLIENT_ID_f044_Channel1
+           CLIENT_ID: ${{ secrets[format('YOUTUBE_CLIENT_ID_DND_{0}', github.event.inputs.channelName)] }}
+           CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_DND_{0}', github.event.inputs.channelName)] }}
+           REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_DND_{0}', github.event.inputs.channelName)] }}
+           VIDEO_TYPE: ${{ env.VIDEO_TYPE }}
+           VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
+           VIDEO_DESCRIPTION: ${{ github.event.inputs.videoDescription }}
+           PUBLISH_DATE: ${{ github.event.inputs.publishDate }}
+           VIDEO_TIME: ${{ github.event.inputs.videoTime }}
+           THUMBNAIL_ID: ${{ github.event.inputs.thumbnailId }}
+           LOCATION: ${{ github.event.inputs.location || '' }}
+           TAGS: ${{ github.event.inputs.tags || '' }}
+           AI_CONTENT: ${{ github.event.inputs.aiContent || '' }}
+           AUDIENCE: ${{ github.event.inputs.audience || '' }}
+           AGE_RESTRICTION: ${{ github.event.inputs.ageRestriction || '' }}
+          
+        run: |
+          node upload.js
