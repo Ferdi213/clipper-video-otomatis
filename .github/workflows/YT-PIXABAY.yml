@@ -429,7 +429,7 @@ jobs:
               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
               crop=${WIDTH}:${HEIGHT},\
               boxblur=20:10[bg];\
-             [fg]scale=-2:960[fg];\
+              [fg]scale=-2:${FG_SCALE}[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
                format=yuv420p[v]" \
               
@@ -460,7 +460,7 @@ jobs:
            [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
            crop=${WIDTH}:${HEIGHT},\
             boxblur=20:10[bg];\
-           [fg]scale=-2:960[fg];\
+           [fg]scale=-2:${FG_SCALE}[fg];\
            [bg][fg]overlay=(W-w)/2:(H-h)/2,\
            format=yuv420p[v]"  \
            -map "[v]" \
