@@ -424,8 +424,8 @@ jobs:
           eval $cmd
           mv output.mp4 video.mp4
 
-     - name: Burn Subtitle
-       run: |
+      - name: Burn Subtitle
+        run: |
          if [ -f subtitle.srt ]; then
           ffmpeg -y \
           -i video.mp4 \
