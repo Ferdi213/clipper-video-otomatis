@@ -511,7 +511,7 @@ jobs:
          if [ -f subtitle.srt ]; then
           ffmpeg -y \
           -i video.mp4 \
-           -vf "subtitles=subtitle.srt:force_style='FontName=Arial,FontSize=7,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=30'"\
+           -vf "subtitles=subtitle.srt:force_style='FontName=Arial,FontSize=7,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=3,Outline=1,Shadow=0,Alignment=2,MarginV=60'"\
            -c:v libx264 \
            -preset ultrafast \
            -crf 26 \
