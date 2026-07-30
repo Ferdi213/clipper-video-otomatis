@@ -371,7 +371,7 @@ jobs:
                  0)
                   echo ">>> Fade In"
 
-                   VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                  VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
                  crop=${WIDTH}:${HEIGHT},\
                  fade=t=in:st=0:d=0.8"
                   ;;
@@ -380,8 +380,10 @@ jobs:
                  echo ">>> Fade Out"
 
                 
+
+                 VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
                 crop=${WIDTH}:${HEIGHT},\
-               fade=t=out:st=${START}:d=0.8"
+                fade=t=out:st=${START}:d=0.8"
                 ;;
 
                  2)
@@ -406,7 +408,8 @@ jobs:
           -loop 1 \
            -i "$f" \
            -i "$next_f" \
-           -vf "$VF"
+           
+           -vf "$VF" \
            $FF_LIGHT \
            -shortest \
            "ready/video_$i.mp4"
@@ -428,7 +431,7 @@ jobs:
               boxblur=20:10[bg];\
              [fg]scale=-2:960[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-               format=yuv420p[v],\
+               format=yuv420p[v]" \
               
               -map "[v]" \
               -map 1:a \
