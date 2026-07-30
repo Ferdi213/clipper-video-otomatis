@@ -298,9 +298,8 @@ jobs:
            if [[ "$next_mime" == audio/* ]]; then
 
               VIDEO_DUR=$(ffprobe -v error \
-             b-show_entries format=duration \
-            -of default=noprint_wrappers=1:nokey=1 "$current")
-
+              -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$current")
               AUDIO_DUR=$(ffprobe -v error \
              -show_entries format=duration \
               -of default=noprint_wrappers=1:nokey=1 "$next")
@@ -322,7 +321,8 @@ jobs:
            START_FMT=$(date -u -d "@$START" +"%H:%M:%S,000")
            END_FMT=$(date -u -d "@$END" +"%H:%M:%S,000")
 
-           TEXT=$(echo "${{ github.event.inputs.scriptTTS }}" | cut -d'|||' -f$((IDX*3-2)))
+           TEXT=$(echo "${{ github.event.inputs.scriptTTS }}" \
+           | awk -F '\\|\\|\\|' "{print \$$IDX}")
 
            echo "$IDX" >> subtitle.srt
            echo "$START_FMT --> $END_FMT" >> subtitle.srt
@@ -447,7 +447,7 @@ jobs:
               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
               crop=${WIDTH}:${HEIGHT},\
               boxblur=20:10[bg];\
-             [fg]scale=-2:960[fg];\
+              [fg]scale=-2:${FG_SCALE}[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
               format=yuv420p[v]" \
               -map "[v]" \
@@ -477,7 +477,7 @@ jobs:
            [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
            crop=${WIDTH}:${HEIGHT},\
             boxblur=20:10[bg];\
-           [fg]scale=-2:960[fg];\
+            [fg]scale=-2:${FG_SCALE}[fg];\
            [bg][fg]overlay=(W-w)/2:(H-h)/2,\
            format=yuv420p[v]"  \
            -map "[v]" \
