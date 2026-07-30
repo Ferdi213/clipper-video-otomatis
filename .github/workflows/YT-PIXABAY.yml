@@ -44,9 +44,6 @@ on:
       ageRestriction:
         description: "Age Restriction"
         required: false
-      scriptTTS:
-        description: "Isi Script TTS dipisahkan |||"
-        required: false
 
 jobs:
   proses:
@@ -252,69 +249,7 @@ jobs:
             echo "VIDEO_TYPE=LONG" >> $GITHUB_ENV
 
           fi
-          
-      - name: Generate Subtitle (.srt)
-        run: |
-          rm -f subtitle.srt
-
-          files=($(ls downloads/raw_*.* | sort -V))
-          num_files=${#files[@]}
-          i=0
-          IDX=1
-          START=0
-
-          while [ $i -lt $num_files ]; do
-
-            current="${files[$i]}"
-           next_idx=$((i+1))
-           next=""
-
-           [ $next_idx -lt $num_files ] && next="${files[$next_idx]}"
-
-           current_mime=$(file --mime-type -b "$current")
-
-           if [[ "$current_mime" == image/* ]] && [ -n "$next" ]; then
-
-            next_mime=$(file --mime-type -b "$next")
-
-            if [[ "$next_mime" == audio/* ]]; then
-
-          DUR=$(ffprobe -v error \
-          -show_entries format=duration \
-          -of default=noprint_wrappers=1:nokey=1 "$next")
-
-          END=$(awk -v s="$START" -v d="$DUR" 'BEGIN{print s+d}')
-
-          START_FMT=$(printf "%02d:%02d:%02d,000" \
-          $(awk "BEGIN{print int($START/3600)}") \
-          $(awk "BEGIN{print int(($START%3600)/60)}") \
-          $(awk "BEGIN{print int($START%60)}"))
-
-          END_FMT=$(printf "%02d:%02d:%02d,000" \
-          $(awk "BEGIN{print int($END/3600)}") \
-          $(awk "BEGIN{print int(($END%3600)/60)}") \
-          $(awk "BEGIN{print int($END%60)}"))
-
-          TEXT=$(echo "${{ github.event.inputs.scriptTTS }}" \
-          | awk -F '\\|\\|\\|' "{print \$$IDX}")
-          echo "$IDX" >> subtitle.srt
-          echo "$START_FMT --> $END_FMT" >> subtitle.srt
-          echo "$TEXT" >> subtitle.srt
-          echo "" >> subtitle.srt
-
-          START=$END
-          IDX=$((IDX+1))
-
-          i=$((i+2))
-          continue
-
-            fi
-          fi
-
-           i=$((i+1))
-
-          done
-    
+     
       - name: Sync & Encode (Super Ringan & Hemat CPU)
         run: |
           
@@ -371,7 +306,7 @@ jobs:
                  0)
                   echo ">>> Fade In"
 
-                  VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                   VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
                  crop=${WIDTH}:${HEIGHT},\
                  fade=t=in:st=0:d=0.8"
                   ;;
@@ -379,11 +314,9 @@ jobs:
                    1)
                  echo ">>> Fade Out"
 
-                
-
-                 VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
                 crop=${WIDTH}:${HEIGHT},\
-                fade=t=out:st=${START}:d=0.8"
+               fade=t=out:st=${START}:d=0.8"
                 ;;
 
                  2)
@@ -408,7 +341,6 @@ jobs:
           -loop 1 \
            -i "$f" \
            -i "$next_f" \
-           
            -vf "$VF" \
            $FF_LIGHT \
            -shortest \
@@ -429,10 +361,9 @@ jobs:
               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
               crop=${WIDTH}:${HEIGHT},\
               boxblur=20:10[bg];\
-              [fg]scale=-2:${FG_SCALE}[fg];\
+             [fg]scale=-2:960[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-               format=yuv420p[v]" \
-              
+              format=yuv420p[v]" \
               -map "[v]" \
               -map 1:a \
               -c:v libx264 \
@@ -460,7 +391,7 @@ jobs:
            [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
            crop=${WIDTH}:${HEIGHT},\
             boxblur=20:10[bg];\
-           [fg]scale=-2:${FG_SCALE}[fg];\
+           [fg]scale=-2:960[fg];\
            [bg][fg]overlay=(W-w)/2:(H-h)/2,\
            format=yuv420p[v]"  \
            -map "[v]" \
@@ -487,18 +418,7 @@ jobs:
           done
           cmd="$cmd -new output.mp4"
           eval $cmd
-        
-
-      - name: Burn Subtitle
-        run: |
-          ffmpeg -y \
-          -i output.mp4 \
-          -vf "subtitles=subtitle.srt:force_style='Fontsize=12,PrimaryColour=&HFFFFFF&,OutlineColour=&H000000&,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=60'" \
-          -c:v libx264 \
-          -preset ultrafast \
-           -crf 26 \
-          -c:a copy \
-           video.mp4
+          mv output.mp4 video.mp4
 
     #  - name: Upload Artifact
       #  uses: actions/upload-artifact@v4
