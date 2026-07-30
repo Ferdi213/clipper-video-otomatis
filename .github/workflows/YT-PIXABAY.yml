@@ -406,7 +406,7 @@ jobs:
           -loop 1 \
            -i "$f" \
            -i "$next_f" \
-           
+           -vf "$VF"
            $FF_LIGHT \
            -shortest \
            "ready/video_$i.mp4"
@@ -428,6 +428,7 @@ jobs:
               boxblur=20:10[bg];\
              [fg]scale=-2:960[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2,\
+               format=yuv420p[v],\
               
               -map "[v]" \
               -map 1:a \
@@ -483,7 +484,7 @@ jobs:
           done
           cmd="$cmd -new output.mp4"
           eval $cmd
-          mv output.mp4 video.mp4
+        
 
       - name: Burn Subtitle
         run: |
