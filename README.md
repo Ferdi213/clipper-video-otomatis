@@ -1,3 +1,186 @@
+>>>>>>>>> PROMPT UNTUK NARASI AUDIO <<<<<
+
+Kalau target Anda adalah **YouTube Shorts** atau **Facebook Reels**, jangan buat narasi seperti ensiklopedia. Buat narasi yang mengikuti visual Pexels dan membuat orang ingin menonton sampai akhir.
+
+Misalnya API Pexels mengembalikan video dengan keyword **"shark"**.
+
+Video: hiu berenang pelan di laut.
+
+Jangan seperti ini:
+
+> "Hiu adalah ikan bertulang rawan yang hidup di lautan."
+
+Karena membosankan.
+
+Lebih baik gunakan pola seperti ini.
+
+### Formula
+
+```
+Hook (0-3 detik)
+↓
+Fakta mengejutkan
+↓
+Penjelasan singkat
+↓
+Cliffhanger / penutup
+```
+
+Contoh:
+
+> "Kalau kamu melihat hiu sebesar ini di laut, apa yang akan kamu lakukan?"
+
+> "Tahukah kamu? Hiu sebenarnya bisa mendeteksi setetes darah dari jarak yang sangat jauh."
+
+> "Kemampuan itu berasal dari indra penciumannya yang luar biasa sensitif."
+
+> "Tapi justru bukan itu kemampuan hiu yang paling menakjubkan..."
+
+Penonton akan bertahan karena ingin tahu kalimat terakhir.
+
+---
+
+## Contoh lain
+
+Keyword:
+
+```
+Tiger
+```
+
+Narasi:
+
+> "Harimau ini terlihat tenang... tapi satu lompatan saja bisa mengakhiri perburuan dalam hitungan detik."
+
+---
+
+Keyword:
+
+```
+Elephant
+```
+
+Narasi:
+
+> "Banyak orang mengira gajah hanya memiliki ingatan kuat."
+
+> "Padahal mereka juga bisa mengenali suara puluhan anggota keluarganya."
+
+---
+
+Keyword:
+
+```
+Octopus
+```
+
+Narasi:
+
+> "Hewan ini memiliki tiga jantung."
+
+> "Dua memompa darah ke insang."
+
+> "Satu lagi ke seluruh tubuh."
+
+> "Saat berenang, justru jantung utamanya berhenti berdetak."
+
+---
+
+Keyword:
+
+```
+Wolf
+```
+
+Narasi:
+
+> "Serigala jarang berburu sendirian."
+
+> "Mereka bekerja sama dengan strategi yang sudah dilatih sejak kecil."
+
+---
+
+## Yang saya sarankan untuk workflow Anda
+
+Karena Anda sudah memakai AI untuk membuat TTS, alurnya bisa seperti ini:
+
+```
+Keyword
+↓
+Cari video di Pexels
+
+↓
+
+AI melihat keyword
+
+↓
+
+AI membuat narasi 30-40 detik
+
+↓
+
+TTS
+
+↓
+
+Subtitle
+
+↓
+
+Video
+```
+
+Jadi AI **tidak perlu melihat isi video**. Cukup tahu keyword dari Pexels, misalnya:
+
+```
+Keyword:
+Shark
+
+Durasi:
+30 detik
+
+Gaya:
+Misterius
+
+Bahasa:
+Indonesia
+```
+
+AI langsung menghasilkan narasi yang cocok.
+
+---
+
+### Prompt yang bagus
+
+Misalnya di Gemini atau GPT:
+
+```text
+Anda adalah penulis naskah YouTube Shorts.
+
+Keyword video:
+Shark
+
+Tulis narasi 30 detik.
+
+Aturan:
+- Hook maksimal 2 kalimat.
+- Buat penonton penasaran.
+- Setiap kalimat maksimal 12 kata.
+- Cocok dengan video hiu berenang di laut.
+- Bahasa Indonesia.
+- Jangan menggunakan emoji.
+- Tutup dengan fakta mengejutkan.
+```
+
+Hasilnya akan jauh lebih menarik dibanding sekadar menjelaskan definisi hiu.
+
+Dengan cara ini, satu workflow bisa dipakai untuk **ratusan keyword Pexels** (hiu, paus, singa, elang, kucing, ular, dan lain-lain) tanpa perlu membuat naskah secara manual.
+
+
+
+
+
+>>>>>>>PROMPT<<<<
 >>>>jika potong video di satu baris pakai workflows potong-video.yml<<<<
 
 
