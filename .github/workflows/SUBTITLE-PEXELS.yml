@@ -253,6 +253,88 @@ jobs:
             echo "VIDEO_TYPE=LONG" >> $GITHUB_ENV
 
           fi
+
+      - name: Generate Subtitle (.srt)
+        run: |
+           rm -f subtitle.srt
+
+             files=($(ls downloads/raw_*.* | sort -V))
+            num_files=${#files[@]}
+           i=0
+           IDX=1
+            START=0
+
+            while [ $i -lt $num_files ]; do
+
+             current="${files[$i]}"
+             next_idx=$((i+1))
+             next=""
+       
+               [ $next_idx -lt $num_files ] && next="${files[$next_idx]}"
+
+             current_mime=$(file --mime-type -b "$current")
+
+             DUR=""
+
+            # IMAGE + AUDIO
+            if [[ "$current_mime" == image/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+              if [[ "$next_mime" == audio/* ]]; then
+
+               DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+               -of default=noprint_wrappers=1:nokey=1 "$next")
+
+              i=$((i+2))
+           fi
+
+            # VIDEO + AUDIO
+              elif [[ "$current_mime" == video/* ]] && [ -n "$next" ]; then
+
+              next_mime=$(file --mime-type -b "$next")
+
+           if [[ "$next_mime" == audio/* ]]; then
+
+              VIDEO_DUR=$(ffprobe -v error \
+             b-show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 "$current")
+
+              AUDIO_DUR=$(ffprobe -v error \
+             -show_entries format=duration \
+              -of default=noprint_wrappers=1:nokey=1 "$next")
+
+              DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
+             'BEGIN{if(v<a)print v;else print a}')
+
+             i=$((i+2))
+           fi
+
+           else
+            i=$((i+1))
+           fi
+
+           if [ -n "$DUR" ]; then
+
+            END=$(awk -v s="$START" -v d="$DUR" 'BEGIN{print s+d}')
+
+           START_FMT=$(date -u -d "@$START" +"%H:%M:%S,000")
+           END_FMT=$(date -u -d "@$END" +"%H:%M:%S,000")
+
+           TEXT=$(echo "${{ github.event.inputs.scriptTTS }}" | cut -d'|||' -f$((IDX*3-2)))
+
+           echo "$IDX" >> subtitle.srt
+           echo "$START_FMT --> $END_FMT" >> subtitle.srt
+           echo "$TEXT" >> subtitle.srt
+           echo "" >> subtitle.srt
+
+            START=$END
+            IDX=$((IDX+1))
+
+           fi
+
+           done
      
       - name: Sync & Encode (Super Ringan & Hemat CPU)
         run: |
