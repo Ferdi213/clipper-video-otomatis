@@ -206,9 +206,11 @@ jobs:
 
           for i in "${!TS[@]}"; do
 
-             start=${TS[$i]%-*}
-            end=${TS[$i]#*-}
+             start=$(echo "${TS[$i]}" | cut -d'-' -f1)
+             end=$(echo "${TS[$i]}" | cut -d'-' -f2)
 
+             start=$(printf "%02d:%02d" 0 "$start")
+             end=$(printf "%02d:%02d" 0 "$end")
             ffmpeg -y \
           -ss "$start" \
           -to "$end" \
