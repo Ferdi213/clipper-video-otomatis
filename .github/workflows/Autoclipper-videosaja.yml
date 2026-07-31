@@ -183,6 +183,17 @@ jobs:
                -i aud_list.txt \
                -c copy \
               audio_gabungan.m4a
+
+              echo "===== AUDIO HASIL DOWNLOAD ====="
+              ls -lh downloads/
+
+              for f in downloads/aud_*; do
+              echo "----- $f -----"
+             ffprobe -v error \
+            -show_entries format=duration \
+             -of default=noprint_wrappers=1:nokey=1 \
+             "$f"
+           done
           fi
 
       - name: Cut Timestamps
