@@ -198,28 +198,26 @@ jobs:
 
       - name: Cut Timestamps
         run: |
-          if [ -n "${{ github.event.inputs.timestamps }}" ]; then
+          IFS=',' read -ra TS <<< "${{ github.event.inputs.timestamps }}"
 
-              rm -f cut_list.txt
+           rm -f cut_list.txt
 
-               IFS=',' read -ra TS <<< "${{ github.event.inputs.timestamps }}"
+           for i in "${!TS[@]}"; do
 
-              for i in "${!TS[@]}"; do
+            start=${TS[$i]%-*}
+            end=${TS[$i]#*-}
 
-              start=${TS[$i]%-*}
-               end=${TS[$i]#*-}
-
-          ffmpeg -y \
-          -ss "$start" \
-          -to "$end" \
-          -i video_mentah.mp4 \
-          -an \
-          -c:v libx264 \
-          "seg_$i.mp4"
+            ffmpeg -y \
+             -ss "$start" \
+            -to "$end" \
+            -i video_mentah.mp4 \
+             -an \
+            -c:v libx264 \
+             "seg_$i.mp4"
 
             echo "file 'seg_$i.mp4'" >> cut_list.txt
 
-          done
+            done
 
            ffmpeg -y \
            -f concat \
