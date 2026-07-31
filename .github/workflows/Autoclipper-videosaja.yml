@@ -185,8 +185,8 @@ jobs:
               audio_gabungan.m4a
           fi
 
-          - name: Cut Timestamps
-            run: |
+      - name: Cut Timestamps
+        run: |
           if [ -n "${{ github.event.inputs.timestamps }}" ]; then
 
               rm -f cut_list.txt
