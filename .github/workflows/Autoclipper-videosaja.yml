@@ -241,6 +241,20 @@ jobs:
 
           fi
 
+            echo "===== DURASI FILE ====="
+
+             ffprobe -v error -show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 video_mentah.mp4
+
+            ffprobe -v error -show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 video_cut.mp4
+
+             ffprobe -v error -show_entries format=duration \
+             -of default=noprint_wrappers=1:nokey=1 audio_gabungan.m4a
+
+            ffprobe -v error -show_entries format=duration \
+            -of default=noprint_wrappers=1:nokey=1 video.mp4
+
       - name: Send to Telegram
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
