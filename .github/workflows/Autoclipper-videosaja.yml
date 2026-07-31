@@ -198,37 +198,39 @@ jobs:
 
       - name: Cut Timestamps
         run: |
+          if [ -n "${{ github.event.inputs.timestamps }}" ]; then
+
           IFS=',' read -ra TS <<< "${{ github.event.inputs.timestamps }}"
 
-           rm -f cut_list.txt
+          rm -f cut_list.txt
 
-           for i in "${!TS[@]}"; do
+          for i in "${!TS[@]}"; do
 
-            start=${TS[$i]%-*}
+             start=${TS[$i]%-*}
             end=${TS[$i]#*-}
 
             ffmpeg -y \
-             -ss "$start" \
-            -to "$end" \
-            -i video_mentah.mp4 \
-             -an \
-            -c:v libx264 \
-             "seg_$i.mp4"
+          -ss "$start" \
+          -to "$end" \
+          -i video_mentah.mp4 \
+          -an \
+          -c:v libx264 \
+          "seg_$i.mp4"
 
-            echo "file 'seg_$i.mp4'" >> cut_list.txt
+          echo "file 'seg_$i.mp4'" >> cut_list.txt
 
-            done
+          done
 
            ffmpeg -y \
-           -f concat \
+          -f concat \
             -safe 0 \
-            -i cut_list.txt \
-            -c copy \
-            video_cut.mp4
+           -i cut_list.txt \
+           -c copy \
+           video_cut.mp4
 
-          else
+           else
 
-            cp video_mentah.mp4 video_cut.mp4
+           cp video_mentah.mp4 video_cut.mp4
 
           fi
 
@@ -241,7 +243,7 @@ jobs:
              -map 1:a:0 \
              -c:v copy \
               -c:a aac \
-             -shortest \
+             
               video.mp4
 
           else
