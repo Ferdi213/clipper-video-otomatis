@@ -78,7 +78,7 @@ jobs:
       - name: Install Tools
         run: |
           sudo apt-get update -qq
-            sudo apt-get install -y -qq ffmpeg megatools gpac
+          sudo apt-get install -y -qq ffmpeg megatools gpac
           pip install -q gdown
           mkdir -p downloads ready
 
@@ -154,15 +154,20 @@ jobs:
         run: |
           # 1. Gabung Video dengan MP4Box
           if ls downloads/vid_*.mp4 >/dev/null 2>&1; then
-           files=($(ls downloads/vid_*.mp4 | sort -V))cmd="MP4Box -new video_mentah.mp4"
-            for f in "${files[@]}"; do
-              cmd="$cmd -cat \"$f\""
-            done
-            eval $cmd
-          else
-            echo "❌ Tidak ada file video untuk digabung!"
-            exit 1
-          fi
+              files=($(ls downloads/vid_*.mp4 | sort -V))
+
+             cmd="MP4Box -new video_mentah.mp4"
+
+           for f in "${files[@]}"; do
+               cmd="$cmd -cat \"$f\""
+          done
+
+                  echo "$cmd"
+                 eval "$cmd"
+           else
+                echo "❌ Tidak ada file video untuk digabung!"
+               exit 1
+           fi
 
           # 2. Gabung Audio & Tempel ke Video
           if ls downloads/aud_*.m4a >/dev/null 2>&1; then
