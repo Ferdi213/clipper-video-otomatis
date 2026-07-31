@@ -245,8 +245,7 @@ jobs:
              -map 1:a:0 \
              -c:v copy \
               -c:a aac \
-             
-              video.mp4
+             video.mp4
 
           else
 
