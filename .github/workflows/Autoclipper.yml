@@ -129,8 +129,8 @@ jobs:
       - name: Merge Media
         run: |
           # 1. Gabung Video dengan MP4Box
-          if ls downloads/vid_*.mp4 >/dev/null 2>&1; then
-            files=($(ls downloads/vid_*.mp4 | sort -V))
+          if ls downloads/aud_*.m4a >/dev/null 2>&1; then
+            files=($(ls downloads/aud_*.m4a | sort -V))
             cmd="MP4Box -new video_mentah.mp4"
             for f in "${files[@]}"; do
               cmd="$cmd -cat \"$f\""
