@@ -157,26 +157,8 @@ jobs:
           i=0
 
           while [ $i -lt $num_files ]; do
-
-          #disini
-          SCENE=$((i/2+1))
-
-           PNG=""
-
-          IFS='|' read -ra ITEMS <<< "$OVERLAY_SCENE"
-
-          for ITEM in "${ITEMS[@]}"; do
-
-          S=${ITEM%%=*}
-          O=${ITEM##*=}
-
-          if [ "$S" = "$SCENE" ]; then
-             PNG="assets/$O.png"
-          fi
-
-          done
-
-            current="${files[$i]}"
+          
+           current="${files[$i]}"
             next_idx=$((i+1))
             next=""
 
@@ -383,6 +365,24 @@ jobs:
             next_idx=$((i+1))
             next_f=""
             [ $next_idx -lt $num_files ] && next_f="${files[$next_idx]}"
+
+            #disini
+          SCENE=$((i/2+1))
+
+           PNG=""
+
+          IFS='|' read -ra ITEMS <<< "$OVERLAY_SCENE"
+
+          for ITEM in "${ITEMS[@]}"; do
+
+          S=${ITEM%%=*}
+          O=${ITEM##*=}
+
+          if [ "$S" = "$SCENE" ]; then
+             PNG="assets/$O.png"
+          fi
+
+          done
             
             is_img=0; is_vid=0; is_aud=0; is_next_aud=0
             mime=$(file --mime-type -b "$f")
