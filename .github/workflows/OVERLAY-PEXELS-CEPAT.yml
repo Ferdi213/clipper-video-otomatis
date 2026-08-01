@@ -523,9 +523,7 @@ jobs:
            [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
            [fg]scale=-2:${FG_SCALE}[fg];\
            [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
-           [2:v]scale=180:-1[ov];\
-           [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]" \
-            -map "[v]" \
+           -map "[v]" \
             -map 1:a \
            -c:v libx264 \
             -preset ultrafast \
@@ -581,9 +579,7 @@ jobs:
            [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
            [fg]scale=-2:${FG_SCALE}[fg];\
            [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
-           [2:v]scale=180:-1[ov];\
-           [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]" \
-          -map "[v]" \
+           -map "[v]" \
           -map 0:a? \
           -c:v libx264 \
           -preset ultrafast \
