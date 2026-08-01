@@ -447,10 +447,21 @@ jobs:
 
              esac
 
-          ffmpeg -y \
-          -loop 1 \
-           -i "$f" \
+          if [ -f "$PNG" ]; then
+          ffmpeg \
+           -loop 1 \
+            -i "$f" \
+            -i "$next_f" \
+            -i "$PNG" \
+           ...
+          else
+            ffmpeg \
+           -loop 1 \
+            -i "$f" \
            -i "$next_f" \
+           ...
+          fi
+          
            -vf "$VF" \
            $FF_LIGHT \
            -shortest \
@@ -461,19 +472,23 @@ jobs:
           
 
             # KASUS B: VIDEO + AUDIO
-            elif [ $is_vid -eq 1 ] && [ $is_next_aud -eq 1 ]; then
-              
-              ffmpeg -y \
-               -i "$f" \
+             elif [ $is_vid -eq 1 ] && [ $is_next_aud -eq 1 ]; then
+
+              if [ -f "$PNG" ]; then
+
+             ffmpeg -y \
+              -i "$f" \
               -i "$next_f" \
-              -filter_complex "\
-              [0:v]split=2[bg][fg];\
+               -i "$PNG" \
+                -filter_complex "\
+               [0:v]split=2[bg][fg];\
               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-              crop=${WIDTH}:${HEIGHT},\
-              boxblur=20:10[bg];\
-              [fg]scale=-2:${FG_SCALE}[fg];\
-             [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-              format=yuv420p[v]" \
+                crop=${WIDTH}:${HEIGHT},\
+                boxblur=20:10[bg];\
+               [fg]scale=-2:${FG_SCALE}[fg];\
+               [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
+                [2:v]scale=180:-1[ov];\
+                [tmp][ov]overlay=W-w-40:H-h-180[v]"  \
               -map "[v]" \
               -map 1:a \
               -c:v libx264 \
@@ -482,7 +497,29 @@ jobs:
               -c:a aac \
              -shortest \
               "ready/video_$i.mp4"
-              
+              else
+
+                ffmpeg -y \
+                 -i "$f" \
+                -i "$next_f" \
+                 -filter_complex "\
+                [0:v]split=2[bg][fg];\
+               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+                 crop=${WIDTH}:${HEIGHT},\
+                 boxblur=20:10[bg];\
+               [fg]scale=-2:${FG_SCALE}[fg];\
+               [bg][fg]overlay=(W-w)/2:(H-h)/2,\
+                  format=yuv420p[v]" \
+                -map "[v]" \
+                  -map 1:a \
+                 -c:v libx264 \
+                 -preset ultrafast \
+                 -crf 26 \
+                    -c:a aac \
+                   -shortest \
+                 "ready/video_$i.mp4"
+
+             fi
               i=$((i+2))
                 
             # KASUS C: AUDIO SAJA
@@ -494,16 +531,20 @@ jobs:
             # KASUS D: VIDEO SAJA
             else
               # KASUS D: VIDEO SAJA
-            ffmpeg -y \
+            if [ -f "$PNG" ]; then
+
+           ffmpeg -y \
             -i "$f" \
+            -i "$PNG" \
            -filter_complex "\
             [0:v]split=2[bg][fg];\
-           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-           crop=${WIDTH}:${HEIGHT},\
-            boxblur=20:10[bg];\
+             [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+             crop=${WIDTH}:${HEIGHT},\
+             boxblur=20:10[bg];\
             [fg]scale=-2:${FG_SCALE}[fg];\
-           [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-           format=yuv420p[v]"  \
+           [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
+           [1:v]scale=180:-1[ov];\
+           [tmp][ov]overlay=W-w-40:H-h-180[v]"  \
            -map "[v]" \
            -map 0:a? \
            -c:v libx264 \
