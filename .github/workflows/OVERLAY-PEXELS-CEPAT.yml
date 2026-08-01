@@ -456,6 +456,7 @@ jobs:
              [0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
               crop=${WIDTH}:${HEIGHT},\
              ${FADE}[base];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
             [2:v]scale=180:-1[ov];\
               [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]" \
               -map "[v]" \
