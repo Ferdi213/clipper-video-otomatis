@@ -529,9 +529,9 @@ jobs:
                  -preset ultrafast \
                  -crf 26 \
                 -c:a aac \
+                 $FF_LIGHT \
                  -shortest \
-                "ready/video_$i.mp4"-
-                
+                 "ready/video_$i.mp4"
 
             fi
 
@@ -588,8 +588,9 @@ jobs:
             -pix_fmt yuv420p \
             -c:a aac \
             -r 30 \
+            $FF_LIGHT \
             -shortest \
-            "ready/video_$i.mp4"
+             "ready/video_$i.mp4"
           fi
 
             i=$((i+1))
