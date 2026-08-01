@@ -530,10 +530,10 @@ jobs:
                  -crf 26 \
                 -c:a aac \
                  -shortest \
-                "ready/video_$i.mp4"-map "[v]" \
-            
+                "ready/video_$i.mp4"-
+                
 
-           fi
+            fi
 
              i=$((i+2))
                 
