@@ -356,7 +356,7 @@ jobs:
           num_files=${#files[@]}
           i=0
 
-          OVERLAY_SCENE="${{ github.event.inputs.overlayScene }}"
+          OVERLAY_SCENE="${{ github.event.inputs.Overlay }}"
 
           FF_LIGHT="-c:v libx264 -preset ultrafast -tune fastdecode -crf 26 -pix_fmt yuv420p -c:a aac -g 30 -r 30"
 
@@ -369,19 +369,28 @@ jobs:
             #disini
           SCENE=$((i/2+1))
 
-             PNG=""
+          PNG=""
 
-           if [ "$S" = "$SCENE" ]; then
+          IFS='|' read -ra ITEMS <<< "$OVERLAY_SCENE"
 
-          for EXT in png PNG jpg JPG jpeg JPEG webp WEBP; do
-           if [ -f "assets/$O.$EXT" ]; then
-            PNG="assets/$O.$EXT"
-               break
-           fi
-             done
+          for ITEM in "${ITEMS[@]}"; do
+
+              S=${ITEM%%=*}
+              O=${ITEM##*=}
+
+          if [ "$S" = "$SCENE" ]; then
+
+              for EXT in png PNG jpg JPG jpeg JPEG webp WEBP; do
+                   if [ -f "assets/$O.$EXT" ]; then
+                     PNG="assets/$O.$EXT"
+                     break
+                   fi
+              done
 
              break
-          fi
+           fi
+
+          done
 
            OVERLAY_INPUT=""
             OVERLAY_FILTER=""
@@ -477,32 +486,54 @@ jobs:
             
           
 
-            # KASUS B: VIDEO + AUDIO
+            
+             # KASUS B: VIDEO + AUDIO
              elif [ $is_vid -eq 1 ] && [ $is_next_aud -eq 1 ]; then
 
-              if [ -f "$PNG" ]; then
+             if [ -f "$PNG" ]; then
 
              ffmpeg -y \
-            -i "$f" \
-            -i "$next_f" \
-            $OVERLAY_INPUT \
-            -filter_complex "\
-           [0:v]split=2[bg][fg];\
-           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
-            [fg]scale=-2:${FG_SCALE}[fg];\
-            [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
-            $OVERLAY_FILTER" \
-             -map "$OVERLAY_MAP" \
+             -i "$f" \
+             -i "$next_f" \
+             -i "$PNG" \
+              -filter_complex "\
+              [0:v]split=2[bg][fg];\
+              [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+              [fg]scale=-2:${FG_SCALE}[fg];\
+             [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
+             [2:v]scale=180:-1[ov];\
+             [base][ov]overlay=W-w-40:H-h-180[v]" \
+               -map "[v]" \
              -map 1:a \
-             -c:v libx264 \
+            -c:v libx264 \
              -preset ultrafast \
-            -crf 26 \
-            -c:a aac \
+             -crf 26 \
+             -c:a aac \
              -shortest \
-              "ready/video_$i.mp4"
+             "ready/video_$i.mp4"
 
-             fi
-              i=$((i+2))
+             else
+
+            ffmpeg -y \
+            -i "$f" \
+           -i "$next_f" \
+            -filter_complex "\
+          [0:v]split=2[bg][fg];\
+           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+           [fg]scale=-2:${FG_SCALE}[fg];\
+          [bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]" \
+            -map "[v]" \
+            -map 1:a \
+           -c:v libx264 \
+            -preset ultrafast \
+          -crf 26 \
+           -c:a aac \
+            -shortest \
+           "ready/video_$i.mp4"
+
+          fi
+
+             i=$((i+2))
                 
             # KASUS C: AUDIO SAJA
             elif [ $is_aud -eq 1 ]; then
@@ -510,34 +541,57 @@ jobs:
               $FF_LIGHT -shortest "ready/video_$i.mp4"
               i=$((i+1))
 
+            
+            
             # KASUS D: VIDEO SAJA
-            else
-              # KASUS D: VIDEO SAJA
-            if [ -f "$PNG" ]; then
+          else
+
+           if [ -f "$PNG" ]; then
 
            ffmpeg -y \
            -i "$f" \
-            $OVERLAY_INPUT \
+          -i "$PNG" \
+          -filter_complex "\
+          [0:v]split=2[bg][fg];\
+          [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+          [fg]scale=-2:${FG_SCALE}[fg];\
+          [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
+          [1:v]scale=180:-1[ov];\
+          [base][ov]overlay=W-w-40:H-h-180[v]" \
+          -map "[v]" \
+          -map 0:a? \
+          -c:v libx264 \
+           -preset ultrafast \
+          -crf 26 \
+          -pix_fmt yuv420p \
+          -c:a aac \
+           -r 30 \
+          -shortest \
+          "ready/video_$i.mp4"
+
+          else
+
+           ffmpeg -y \
+           -i "$f" \
            -filter_complex "\
            [0:v]split=2[bg][fg];\
-          [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
            [fg]scale=-2:${FG_SCALE}[fg];\
-           [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
-            $OVERLAY_FILTER" \
-           -map "$OVERLAY_MAP" \
-            -map 0:a? \
-            -c:v libx264 \
-           -preset ultrafast \
+            [bg][fg]overlay=(W-w)/2:(H-h)/2,format=yuv420p[v]" \
+          -map "[v]" \
+          -map 0:a? \
+          -c:v libx264 \
+          -preset ultrafast \
            -crf 26 \
-           -pix_fmt yuv420p \
+          -pix_fmt yuv420p \
            -c:a aac \
            -r 30 \
-           -shortest \
-             "ready/video_$i.mp4"
+          -shortest \
+           "ready/video_$i.mp4"
 
-                i=$((i+1))
-            fi
-          done
+          fi
+
+            i=$((i+1))
 
       - name: Merge Final (Pakai MP4Box Instan)
         run: |
