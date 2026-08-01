@@ -592,6 +592,8 @@ jobs:
           fi
 
             i=$((i+1))
+          fi
+          done
 
       - name: Merge Final (Pakai MP4Box Instan)
         run: |
