@@ -383,6 +383,18 @@ jobs:
           fi
 
           done
+
+           OVERLAY_INPUT=""
+            OVERLAY_FILTER=""
+             OVERLAY_MAP="[base]"
+
+             if [ -f "$PNG" ]; then
+              OVERLAY_INPUT="-i $PNG"
+             OVERLAY_FILTER="[2:v]scale=180:-1[ov];[base][ov]overlay=W-w-40:H-h-180[v]"
+              OVERLAY_MAP="[v]"
+            else
+              OVERLAY_MAP="[base]"
+             fi
             
             is_img=0; is_vid=0; is_aud=0; is_next_aud=0
             mime=$(file --mime-type -b "$f")
@@ -397,77 +409,72 @@ jobs:
 
             
             # KASUS A: GAMBAR + AUDIO (Fade Acak)
-            if [ $is_img -eq 1 ] && [ $is_next_aud -eq 1 ]; then
+              # KASUS A: GAMBAR + AUDIO (Fade Acak + Overlay)
+              if [ $is_img -eq 1 ] && [ $is_next_aud -eq 1 ]; then
 
-               # Ambil durasi audio
               DUR=$(ffprobe -v error \
-              -show_entries format=duration \
-              -of default=noprint_wrappers=1:nokey=1 \
-               "$next_f")
+             -show_entries format=duration \
+             -of default=noprint_wrappers=1:nokey=1 \
+              "$next_f")
 
-               # Mulai fade 0.8 detik sebelum audio selesai
-               START=$(awk "BEGIN { s=$DUR-0.8; if(s<0)s=0; print s }")
+                START=$(awk "BEGIN { s=$DUR-0.8; if(s<0)s=0; print s }")
 
-              # Pilih efek acak
-                EFFECT=$((RANDOM % 4))
+               EFFECT=$((RANDOM % 4))
 
-                case $EFFECT in
-
-                 0)
-                  echo ">>> Fade In"
-
-                   VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-                 crop=${WIDTH}:${HEIGHT},\
-                 fade=t=in:st=0:d=0.8"
-                  ;;
-
-                   1)
-                 echo ">>> Fade Out"
-
-                VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-                crop=${WIDTH}:${HEIGHT},\
-               fade=t=out:st=${START}:d=0.8"
-                ;;
-
-                 2)
-                echo ">>> Fade White In"
-
-               VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-              crop=${WIDTH}:${HEIGHT},\
-               fade=t=in:st=0:d=0.8:color=white"
-                ;;
-
-          3)
-            echo ">>> Fade White Out"
-
-            VF="scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-          crop=${WIDTH}:${HEIGHT},\
-          fade=t=out:st=${START}:d=0.8:color=white"
+                 case $EFFECT in
+                  0)
+              FADE="fade=t=in:st=0:d=0.8"
+              ;;
+             1)
+              FADE="fade=t=out:st=${START}:d=0.8"
+              ;;
+             2)
+              FADE="fade=t=in:st=0:d=0.8:color=white"
+             ;;
+             3)
+              FADE="fade=t=out:st=${START}:d=0.8:color=white"
             ;;
+              esac
 
-             esac
+              if [ -f "$PNG" ]; then
 
-          if [ -f "$PNG" ]; then
-          ffmpeg \
-           -loop 1 \
-            -i "$f" \
-            -i "$next_f" \
-            -i "$PNG" \
-           ...
-          else
-            ffmpeg \
-           -loop 1 \
-            -i "$f" \
-           -i "$next_f" \
-           ...
-          fi
-          
-           -vf "$VF" \
-           $FF_LIGHT \
-           -shortest \
-           "ready/video_$i.mp4"
+             ffmpeg -y \
+             -loop 1 \
+             -t "$DUR" \
+              -i "$f" \
+              -i "$next_f" \
+             -i "$PNG" \
+             -filter_complex "\
+             [0:v]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
+              crop=${WIDTH}:${HEIGHT},\
+             ${FADE}[base];\
+            [2:v]scale=180:-1[ov];\
+              [base][ov]overlay=W-w-40:H-h-180[v]" \
+              -map "[v]" \
+             -map 1:a \
+               -c:v libx264 \
+             -preset ultrafast \
+             -crf 26 \
+             -pix_fmt yuv420p \
+             -c:a aac \
+              -shortest \
+             "ready/video_$i.mp4"
 
-            i=$((i+2))
+            else
+
+             ffmpeg -y \
+              -loop 1 \
+             -t "$DUR" \
+             -i "$f" \
+             -i "$next_f" \
+             -vf "scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},${FADE}" \
+               $FF_LIGHT \
+            -shortest \
+             "ready/video_$i.mp4"
+
+            fi
+
+               i=$((i+2))
             
           
 
@@ -477,47 +484,23 @@ jobs:
               if [ -f "$PNG" ]; then
 
              ffmpeg -y \
-              -i "$f" \
-              -i "$next_f" \
-               -i "$PNG" \
-                -filter_complex "\
-               [0:v]split=2[bg][fg];\
-              [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-                crop=${WIDTH}:${HEIGHT},\
-                boxblur=20:10[bg];\
-               [fg]scale=-2:${FG_SCALE}[fg];\
-               [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
-                [2:v]scale=180:-1[ov];\
-                [tmp][ov]overlay=W-w-40:H-h-180[v]"  \
-              -map "[v]" \
-              -map 1:a \
-              -c:v libx264 \
-              -preset ultrafast \
-              -crf 26 \
-              -c:a aac \
+            -i "$f" \
+            -i "$next_f" \
+            $OVERLAY_INPUT \
+            -filter_complex "\
+           [0:v]split=2[bg][fg];\
+           [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+            [fg]scale=-2:${FG_SCALE}[fg];\
+            [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
+            $OVERLAY_FILTER" \
+             -map "$OVERLAY_MAP" \
+             -map 1:a \
+             -c:v libx264 \
+             -preset ultrafast \
+            -crf 26 \
+            -c:a aac \
              -shortest \
               "ready/video_$i.mp4"
-              else
-
-                ffmpeg -y \
-                 -i "$f" \
-                -i "$next_f" \
-                 -filter_complex "\
-                [0:v]split=2[bg][fg];\
-               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-                 crop=${WIDTH}:${HEIGHT},\
-                 boxblur=20:10[bg];\
-               [fg]scale=-2:${FG_SCALE}[fg];\
-               [bg][fg]overlay=(W-w)/2:(H-h)/2,\
-                  format=yuv420p[v]" \
-                -map "[v]" \
-                  -map 1:a \
-                 -c:v libx264 \
-                 -preset ultrafast \
-                 -crf 26 \
-                    -c:a aac \
-                   -shortest \
-                 "ready/video_$i.mp4"
 
              fi
               i=$((i+2))
@@ -534,26 +517,23 @@ jobs:
             if [ -f "$PNG" ]; then
 
            ffmpeg -y \
-            -i "$f" \
-            -i "$PNG" \
+           -i "$f" \
+            $OVERLAY_INPUT \
            -filter_complex "\
-            [0:v]split=2[bg][fg];\
-             [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,\
-             crop=${WIDTH}:${HEIGHT},\
-             boxblur=20:10[bg];\
-            [fg]scale=-2:${FG_SCALE}[fg];\
-           [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
-           [1:v]scale=180:-1[ov];\
-           [tmp][ov]overlay=W-w-40:H-h-180[v]"  \
-           -map "[v]" \
-           -map 0:a? \
-           -c:v libx264 \
-            -preset ultrafast \
+           [0:v]split=2[bg][fg];\
+          [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+           [fg]scale=-2:${FG_SCALE}[fg];\
+           [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
+            $OVERLAY_FILTER" \
+           -map "$OVERLAY_MAP" \
+            -map 0:a? \
+            -c:v libx264 \
+           -preset ultrafast \
            -crf 26 \
-            -pix_fmt yuv420p \
-            -c:a aac \
-            -r 30 \
-            -shortest \
+           -pix_fmt yuv420p \
+           -c:a aac \
+           -r 30 \
+           -shortest \
              "ready/video_$i.mp4"
 
                 i=$((i+1))
