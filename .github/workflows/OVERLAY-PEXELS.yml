@@ -369,20 +369,19 @@ jobs:
             #disini
           SCENE=$((i/2+1))
 
-           PNG=""
+             PNG=""
 
-          IFS='|' read -ra ITEMS <<< "$OVERLAY_SCENE"
+           if [ "$S" = "$SCENE" ]; then
 
-          for ITEM in "${ITEMS[@]}"; do
+          for EXT in png PNG jpg JPG jpeg JPEG webp WEBP; do
+           if [ -f "assets/$O.$EXT" ]; then
+            PNG="assets/$O.$EXT"
+               break
+           fi
+             done
 
-          S=${ITEM%%=*}
-          O=${ITEM##*=}
-
-          if [ "$S" = "$SCENE" ]; then
-             PNG="assets/$O.png"
+             break
           fi
-
-          done
 
            OVERLAY_INPUT=""
             OVERLAY_FILTER=""
