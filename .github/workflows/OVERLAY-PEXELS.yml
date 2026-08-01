@@ -47,7 +47,7 @@ on:
       scriptTTS:
         description: "Isi Script TTS dipisahkan |||"
         required: false
-      overlayScene:
+      Overlay:
        description: "Contoh: 1=like|4=subscribe|7=bell"
        required: false
        default: ""
