@@ -459,7 +459,7 @@ jobs:
              [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
               [tmp]${FADE}[base];\
               [2:v]scale=180:-1[ov];\
-              [base][ov]overlay=W-w-120:H-h-300:enable='between(t,1,5)'[v]"  -map "[v]" \
+              [base][ov]overlay=W-w-160:H-h-300:enable='between(t,1,5)'[v]"  -map "[v]" \
              -map 1:a \
                -c:v libx264 \
              -preset ultrafast \
