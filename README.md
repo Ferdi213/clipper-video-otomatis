@@ -1,3 +1,13 @@
+>>>>CARA PAKAI OVERLAY<<<
+
+di sheet ,jika satu scene ,satu overlay maka misalnya scene 2 saja, 2=like.png, jika lebih satu maka 2=like|4 komen.jpg
+
+
+>>>>>DIATAS<<<<<<
+
+
+
+
 >>>>>>>>> PROMPT UNTUK NARASI AUDIO <<<<<
 
 Kalau target Anda adalah **YouTube Shorts** atau **Facebook Reels**, jangan buat narasi seperti ensiklopedia. Buat narasi yang mengikuti visual Pexels dan membuat orang ingin menonton sampai akhir.
