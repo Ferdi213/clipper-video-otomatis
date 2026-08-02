@@ -454,12 +454,12 @@ jobs:
              -i "$PNG" \
              -filter_complex "\
               [0:v]split=2[bg][fg];\
-               [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
+              [bg]scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},boxblur=20:10[bg];\
              [fg]scale=-2:${FG_SCALE}[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2[tmp];\
               [tmp]${FADE}[base];\
               [2:v]scale=180:-1[ov];\
-              [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]"  -map "[v]" \
+              [base][ov]overlay=W-w-40:H-h-240:enable='between(t,1,5)'[v]"  -map "[v]" \
              -map 1:a \
                -c:v libx264 \
              -preset ultrafast \
@@ -477,7 +477,7 @@ jobs:
              -i "$f" \
              -i "$next_f" \
              -vf "scale=${WIDTH}:${HEIGHT}:force_original_aspect_ratio=increase,crop=${WIDTH}:${HEIGHT},${FADE}" \
-               $FF_LIGHT \
+             $FF_LIGHT \
             -shortest \
              "ready/video_$i.mp4"
 
@@ -503,7 +503,7 @@ jobs:
               [fg]scale=-2:${FG_SCALE}[fg];\
              [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
              [2:v]scale=180:-1[ov];\
-             [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]" \
+             [base][ov]overlay=W-w-40:H-h-240:enable='between(t,1,5)'[v]" \
                -map "[v]" \
              -map 1:a \
             -c:v libx264 \
@@ -559,7 +559,7 @@ jobs:
           [fg]scale=-2:${FG_SCALE}[fg];\
           [bg][fg]overlay=(W-w)/2:(H-h)/2[base];\
           [1:v]scale=180:-1[ov];\
-          [base][ov]overlay=W-w-40:H-h-180:enable='between(t,1,5)'[v]" \
+          [base][ov]overlay=W-w-40:H-h-240:enable='between(t,1,5)'[v]" \
           -map "[v]" \
           -map 0:a? \
           -c:v libx264 \
