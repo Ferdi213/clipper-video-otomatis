@@ -221,17 +221,28 @@ jobs:
             # VIDEO SAJA
             elif [[ "$current_mime" == video/* ]]; then
 
-              SCENE_DUR=$(ffprobe -v error \
-              -show_entries format=duration \
-              -of default=noprint_wrappers=1:nokey=1 "$current")
+           if [ -n "$next" ]; then
+             next_mime=$(file --mime-type -b "$next")
+           else
+               next_mime=""
+          fi
 
-              i=$((i+1))
+          if [[ "$next_mime" == audio/* ]]; then
 
-            else
+             VIDEO_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$current")
+             AUDIO_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$next")
 
-              i=$((i+1))
+              SCENE_DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" 'BEGIN{if(v<a)print v;else print a}')
 
-            fi
+               i=$((i+2))
+
+           else
+
+              SCENE_DUR=$(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "$current")
+
+             i=$((i+1))
+
+           fi
 
 
             echo "SCENE DURASI = $SCENE_DUR"
@@ -295,7 +306,28 @@ jobs:
            fi
 
             # VIDEO + AUDIO
-              elif [[ "$current_mime" == video/* ]] && [ -n "$next" ]; then
+              elif [[ "$current_mime" == video/* ]]; then
+
+            if [ -n "$next" ]; then
+             next_mime=$(file --mime-type -b "$next")
+           else
+               next_mime=""
+            fi
+
+            if [[ "$next_mime" == audio/* ]]; then
+
+               VIDEO_DUR=...
+                AUDIO_DUR=...
+                 DUR=...
+
+                  i=$((i+2))
+
+             else
+
+                   DUR=""
+                  i=$((i+1))
+
+           fi
 
               next_mime=$(file --mime-type -b "$next")
 
