@@ -126,7 +126,15 @@ jobs:
             echo "$url"
             exit 1
           fi
-            ext=$(file --mime-type -b "$output" | cut -d/ -f2 | sed 's/jpeg/jpg/')
+
+            mime=$(file --mime-type -b "$output")
+            if [[ "$mime" == application/x-empty ]] || [[ "$mime" == inode/x-empty ]] || [[ ! -s "$output" ]]; then
+              echo "Skip file kosong: $url"
+              rm -f "$output"
+              continue
+            fi
+
+            ext=$(echo "$mime" | cut -d/ -f2 | sed 's/jpeg/jpg/')
             mv "$output" "$output.$ext"
             output="$output.$ext"
 
@@ -141,7 +149,7 @@ jobs:
         run: |
           TOTAL=0
 
-          files=($(ls downloads/raw_*.* | sort -V))
+          files=($(find downloads -type f ! -name "*.x-empty" | sort -V))
           num_files=${#files[@]}
           i=0
 
@@ -219,7 +227,7 @@ jobs:
         run: |
            rm -f subtitle.srt
 
-           files=($(ls downloads/raw_*.* | sort -V))
+           files=($(find downloads -type f ! -name "*.x-empty" | sort -V))
            num_files=${#files[@]}
            i=0
            IDX=1
@@ -267,7 +275,7 @@ jobs:
                  'BEGIN{if(v<a)print v;else print a}')
                  i=$((i+2))
                else
-                 DUR=""
+                 DUR="$VIDEO_DUR"
                  i=$((i+1))
                fi
 
@@ -314,7 +322,7 @@ jobs:
              FG_SCALE=${HEIGHT}
           fi
      
-          files=($(ls downloads/raw_*.* | sort -V))
+          files=($(find downloads -type f ! -name "*.x-empty" | sort -V))
           num_files=${#files[@]}
           i=0
 
@@ -548,7 +556,7 @@ jobs:
 
       - name: Upload to YouTube
         env:
-           #CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_DND_{0}', github.event.inputs.channelName)] }}
+         #  CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_DND_{0}', github.event.inputs.channelName)] }}
            REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_DND_{0}', github.event.inputs.channelName)] }}
            VIDEO_TYPE: ${{ env.VIDEO_TYPE }}
            VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
