@@ -121,13 +121,24 @@ jobs:
              echo "Batalkan proses agar pasangan scene tidak rusak"
              exit 1
             fi
+            
+            if [ ! -s "$output" ]; then
+              echo "❌ File kosong dari $url"
+              exit 1
+            fi
+
+            mime=$(file --mime-type -b "$output")
+            if [[ "$mime" == text/html* ]] || [[ "$mime" == application/json* ]]; then
+              echo "❌ URL tidak mengembalikan file audio/video:"
+              cat "$output"
+              exit 1
+            fi
           else
             echo "URL tidak dikenali:"
             echo "$url"
             exit 1
           fi
 
-            mime=$(file --mime-type -b "$output")
             if [[ "$mime" == application/x-empty ]] || [[ "$mime" == inode/x-empty ]] || [[ ! -s "$output" ]]; then
               echo "Skip file kosong: $url"
               rm -f "$output"
@@ -275,7 +286,7 @@ jobs:
                  'BEGIN{if(v<a)print v;else print a}')
                  i=$((i+2))
                else
-                 DUR="$VIDEO_DUR"
+                 DUR=""
                  i=$((i+1))
                fi
 
@@ -556,7 +567,7 @@ jobs:
 
       - name: Upload to YouTube
         env:
-         #  CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_DND_{0}', github.event.inputs.channelName)] }}
+           #CLIENT_SECRET: ${{ secrets[format('YOUTUBE_CLIENT_SECRET_DND_{0}', github.event.inputs.channelName)] }}
            REFRESH_TOKEN: ${{ secrets[format('YOUTUBE_REFRESH_TOKEN_DND_{0}', github.event.inputs.channelName)] }}
            VIDEO_TYPE: ${{ env.VIDEO_TYPE }}
            VIDEO_TITLE: ${{ github.event.inputs.videoTitle }}
