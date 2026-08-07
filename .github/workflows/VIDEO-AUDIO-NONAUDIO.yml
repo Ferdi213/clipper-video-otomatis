@@ -187,33 +187,29 @@ jobs:
               fi
              
             # VIDEO (dengan atau tanpa audio)
-                         # Cek apakah file berikutnya adalah audio
-            is_next_aud=0
-            if [ -n "$next" ]; then
-              next_mime=$(file --mime-type -b "$next")
-              [[ "$next_mime" == audio/* ]] && is_next_aud=1
-            fi
+            elif [[ "$current_mime" == video/* ]]; then
+              if [ -n "$next" ]; then
+                next_mime=$(file --mime-type -b "$next")
+              else
+                next_mime=""
+              fi
 
-            # VIDEO + AUDIO
-            elif [[ "$current_mime" == video/* ]] && [ $is_next_aud -eq 1 ]; then
               VIDEO_DUR=$(ffprobe -v error \
               -show_entries format=duration \
               -of default=noprint_wrappers=1:nokey=1 "$current")
-              AUDIO_DUR=$(ffprobe -v error \
-              -show_entries format=duration \
-              -of default=noprint_wrappers=1:nokey=1 "$next")
 
-              SCENE_DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
-              'BEGIN{if(v<a)print v;else print a}')
-              i=$((i+2))
+              if [[ "$next_mime" == audio/* ]]; then
+                AUDIO_DUR=$(ffprobe -v error \
+                -show_entries format=duration \
+                -of default=noprint_wrappers=1:nokey=1 "$next")
 
-            # VIDEO SAJA (Tanpa Audio)
-            elif [[ "$current_mime" == video/* ]]; then
-              SCENE_DUR=$(ffprobe -v error \
-              -show_entries format=duration \
-              -of default=noprint_wrappers=1:nokey=1 "$current")
-              i=$((i+1))
-            
+                SCENE_DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
+                'BEGIN{if(v<a)print v;else print a}')
+                i=$((i+2))
+              else
+                SCENE_DUR="$VIDEO_DUR"
+                i=$((i+1))
+              fi
 
             # AUDIO SAJA
             elif [[ "$current_mime" == audio/* ]]; then
@@ -273,33 +269,29 @@ jobs:
                fi
 
              # VIDEO (dengan atau tanpa audio)
-                           is_next_aud=0
-             if [ -n "$next" ]; then
-               next_mime=$(file --mime-type -b "$next")
-               [[ "$next_mime" == audio/* ]] && is_next_aud=1
-             fi
+             elif [[ "$current_mime" == video/* ]]; then
+               if [ -n "$next" ]; then
+                 next_mime=$(file --mime-type -b "$next")
+               else
+                 next_mime=""
+               fi
 
-             # VIDEO + AUDIO
-             elif [[ "$current_mime" == video/* ]] && [ $is_next_aud -eq 1 ]; then
                VIDEO_DUR=$(ffprobe -v error \
                -show_entries format=duration \
                -of default=noprint_wrappers=1:nokey=1 "$current")
-               AUDIO_DUR=$(ffprobe -v error \
-               -show_entries format=duration \
-               -of default=noprint_wrappers=1:nokey=1 "$next")
 
-               DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
-               'BEGIN{if(v<a)print v;else print a}')
-               i=$((i+2))
+               if [[ "$next_mime" == audio/* ]]; then
+                 AUDIO_DUR=$(ffprobe -v error \
+                 -show_entries format=duration \
+                 -of default=noprint_wrappers=1:nokey=1 "$next")
 
-             # VIDEO SAJA (Tanpa Audio)
-             elif [[ "$current_mime" == video/* ]]; then
-               DUR=$(ffprobe -v error \
-               -show_entries format=duration \
-               -of default=noprint_wrappers=1:nokey=1 "$current")
-               i=$((i+1))
-
-               
+                 DUR=$(awk -v v="$VIDEO_DUR" -v a="$AUDIO_DUR" \
+                 'BEGIN{if(v<a)print v;else print a}')
+                 i=$((i+2))
+               else
+                 DUR=""
+                 i=$((i+1))
+               fi
 
              # AUDIO SAJA
              elif [[ "$current_mime" == audio/* ]]; then
