@@ -87,9 +87,9 @@ jobs:
          
       - name: Setup & Download
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg megatools gpac bc
-          pip install -q gdown
+          # Menggunakan parameter -qq dan --no-install-recommends agar instalasi tools Linux jauh lebih cepat
+          sudo apt-get install -y -qq --no-install-recommends ffmpeg megatools gpac bc
+          pip install -q --no-cache-dir gdown
           
           mkdir -p downloads ready
           
@@ -102,44 +102,42 @@ jobs:
                 
             output="downloads/raw_$i"
 
-           if [[ "$url" == *"mega.nz"* ]]; then
-             megadl "$url" --path "$output"
-          elif [[ "$url" == *"drive.google.com"* ]]; then
-             gdown "$url" -O "$output" --quiet
-          elif [[ "$url" == http* ]]; then
-             echo "Download: $url"
-             timeout 600 curl -L \
-             --connect-timeout 20 \
-             --retry 2 \
-             --retry-delay 5 \
-             "$url" \
-             -o "$output"
+            if [[ "$url" == *"mega.nz"* ]]; then
+              megadl "$url" --path "$output"
+            elif [[ "$url" == *"drive.google.com"* ]]; then
+              gdown "$url" -O "$output" --quiet
+            elif [[ "$url" == http* ]]; then
+              echo "Download: $url"
+              # Diberi batasan koneksi agar proses curl tidak menggantung terlalu lama jika ada kendala jaringan
+              timeout 300 curl -s -L \
+              --connect-timeout 15 \
+              --retry 2 \
+              --retry-delay 3 \
+              "$url" \
+              -o "$output"
 
-           if [ $? -ne 0 ]; then
-             echo "❌ Download gagal:"
-             echo "$url"
-             echo "Batalkan proses agar pasangan scene tidak rusak"
-             exit 1
+              if [ $? -ne 0 ]; then
+                echo "❌ Download gagal: $url"
+                continue
+              fi
+            else
+              echo "URL tidak dikenali: $url"
+              exit 1
             fi
             
             if [ ! -s "$output" ]; then
               echo "❌ File kosong dari $url"
-              exit 1
+              continue
             fi
 
             mime=$(file --mime-type -b "$output")
             if [[ "$mime" == text/html* ]] || [[ "$mime" == application/json* ]]; then
-              echo "❌ URL tidak mengembalikan file audio/video:"
+              echo "❌ URL tidak mengembalikan file audio/video"
               cat "$output"
-              exit 1
+              continue
             fi
-          else
-            echo "URL tidak dikenali:"
-            echo "$url"
-            exit 1
-          fi
 
-            if [[ "$mime" == application/x-empty ]] || [[ "$mime" == inode/x-empty ]] || [[ ! -s "$output" ]]; then
+            if [[ "$mime" == application/x-empty ]] || [[ "$mime" == inode/x-empty ]]; then
               echo "Skip file kosong: $url"
               rm -f "$output"
               continue
@@ -156,6 +154,7 @@ jobs:
             echo "=============================="
           done
 
+      
       - name: Detect Video Mode (Akurat Berdasarkan Scene)
         run: |
           TOTAL=0
