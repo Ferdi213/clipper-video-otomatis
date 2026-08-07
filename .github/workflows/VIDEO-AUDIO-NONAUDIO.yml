@@ -213,8 +213,7 @@ jobs:
               -show_entries format=duration \
               -of default=noprint_wrappers=1:nokey=1 "$current")
               i=$((i+1))
-
-              fi
+            
 
             # AUDIO SAJA
             elif [[ "$current_mime" == audio/* ]]; then
@@ -300,7 +299,7 @@ jobs:
                -of default=noprint_wrappers=1:nokey=1 "$current")
                i=$((i+1))
 
-               fi
+               
 
              # AUDIO SAJA
              elif [[ "$current_mime" == audio/* ]]; then
