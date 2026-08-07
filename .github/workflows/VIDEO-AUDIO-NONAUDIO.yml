@@ -126,16 +126,20 @@ jobs:
             fi
             
             if [ ! -s "$output" ]; then
-              echo "❌ File kosong dari $url"
+              echo "❌ File kosong atau gagal dari $url, menghapus file..."
+              rm -f "$output"
               continue
             fi
+
 
             mime=$(file --mime-type -b "$output")
             if [[ "$mime" == text/html* ]] || [[ "$mime" == application/json* ]]; then
               echo "❌ URL tidak mengembalikan file audio/video"
               cat "$output"
+              rm -f "$output"
               continue
             fi
+
 
             if [[ "$mime" == application/x-empty ]] || [[ "$mime" == inode/x-empty ]]; then
               echo "Skip file kosong: $url"
