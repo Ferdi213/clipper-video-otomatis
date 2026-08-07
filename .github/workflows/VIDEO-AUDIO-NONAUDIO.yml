@@ -122,7 +122,7 @@ jobs:
               fi
             else
               echo "URL tidak dikenali: $url"
-              exit 1
+              continue
             fi
             
             if [ ! -s "$output" ]; then
